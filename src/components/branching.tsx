@@ -73,8 +73,8 @@ export const BranchingComponent: React.FC = () => {
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
-				onNodesChange={setNodes}
-				onEdgesChange={setEdges}
+				onNodesChange={() => setNodes}
+				onEdgesChange={() => setEdges}
 				onPaneClick={onClickCanvas}
 				fitView
 			>
