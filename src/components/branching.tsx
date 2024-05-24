@@ -1,6 +1,13 @@
-// pages/conversation.tsx
 import React, {useCallback, useState} from 'react'
-import ReactFlow, {addEdge, Background, Controls, MiniMap, Node, Edge, Position} from 'reactflow'
+import ReactFlow, {
+	Background,
+	Controls,
+	MiniMap,
+	Node,
+	Edge,
+	useNodesState,
+	useEdgesState,
+} from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
 	Box,
@@ -17,8 +24,8 @@ const initialNodes: Node[] = []
 const initialEdges: Edge[] = []
 
 export const BranchingComponent: React.FC = () => {
-	const [nodes, setNodes] = useState<Node[]>(initialNodes)
-	const [edges, setEdges] = useState<Edge[]>(initialEdges)
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [nodeId, setNodeId] = useState(1)
@@ -73,8 +80,8 @@ export const BranchingComponent: React.FC = () => {
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
-				onNodesChange={setNodes}
-				onEdgesChange={setEdges}
+				onNodesChange={onNodesChange}
+				onEdgesChange={onEdgesChange}
 				onPaneClick={onClickCanvas}
 				fitView
 			>
