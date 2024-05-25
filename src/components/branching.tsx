@@ -1,5 +1,10 @@
-import React, {useCallback, useRef, useState} from 'react'
+// when we have data in the database :  1. fetch all conversations 2. fetch all it's messages  3.Open ai API call 4. create a new branch message
+// when we dont't have data in the database : 1. create a new conversation 2. open ai API call 3. create a new message
+// when user creates a branch : 1. get gitall the children messages of the current messages 2. call open ai API by passing all the parent messages as payload 4. create a child message
+
+import React, {useCallback, useState} from 'react'
 import ReactFlow, {
+	addEdge,
 	Background,
 	Controls,
 	MiniMap,
@@ -29,7 +34,7 @@ export const BranchingComponent: React.FC = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
-	const clickedNodeIdRef = useRef<string | undefined>()
+	const [selectedNode, setSelectedNode] = useState<string | undefined>()
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
@@ -71,11 +76,11 @@ export const BranchingComponent: React.FC = () => {
 	}
 
 	const handleSubmit = async () => {
-		const newPosition = calculateNewPosition(clickedNodeIdRef.current)
+		const newPosition = calculateNewPosition(selectedNode)
 		const questionNode = addNode(question, newPosition)
 
-		if (clickedNodeIdRef.current) {
-			addEdgeBetweenNodes(clickedNodeIdRef.current, questionNode.id)
+		if (selectedNode) {
+			addEdgeBetweenNodes(selectedNode, questionNode.id)
 		}
 
 		try {
@@ -86,19 +91,17 @@ export const BranchingComponent: React.FC = () => {
 			console.error('Error fetching response from OpenAI:', error)
 		}
 
-		clickedNodeIdRef.current = undefined
+		setSelectedNode(undefined)
 		handleClose()
 	}
 
 	const onNodeClick = async (event: React.MouseEvent<Element, MouseEvent>, node: Node) => {
-		const dataId = event.currentTarget.getAttribute('data-id')
-		console.log('clicked node id', dataId)
-		clickedNodeIdRef.current = dataId!
+		setSelectedNode(node.id)
 		setOpen(true)
 	}
 
 	return (
-		<Box sx={{height: '100vh', width: '100vw'}}>
+		<Box sx={{flexGrow: 1}}>
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
