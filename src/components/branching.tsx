@@ -1,9 +1,6 @@
-// when we have data in the database :  1. fetch all conversations 2. fetch all it's messages  3.Open ai API call 4. create a new branch message
-// when we dont't have data in the database : 1. create a new conversation 2. open ai API call 3. create a new message
-// when user creates a branch : 1. get gitall the children messages of the current messages 2. call open ai API by passing all the parent messages as payload 4. create a child message
-
 import React, {useCallback, useState} from 'react'
 import ReactFlow, {
+	NodeMouseHandler,
 	addEdge,
 	Background,
 	Controls,
@@ -34,24 +31,27 @@ export const BranchingComponent: React.FC = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
-	const [selectedNode, setSelectedNode] = useState<string | undefined>()
+	const [selectedNode, setSelectedNode] = useState<Node>()
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
 	}, [])
 
-	const handleClose = () => {
+	const handleClose = useCallback(() => {
 		setOpen(false)
 		setQuestion('')
-	}
+		setSelectedNode(undefined)
+	}, [])
 
-	const calculateNewPosition = (existingNodeId: string | undefined): {x: number; y: number} => {
+	const calculateNewPosition = (existingNodeId?: Node): {x: number; y: number} => {
 		if (existingNodeId) {
-			const existingNode = nodes.find(node => node.id === existingNodeId)
+			const existingNode = nodes.find(node => node.id === existingNodeId.id)
+
 			if (existingNode) {
 				return {x: existingNode.position.x + 200, y: existingNode.position.y + 50}
 			}
 		}
+
 		return {x: Math.random() * 400, y: Math.random() * 400}
 	}
 
@@ -65,7 +65,7 @@ export const BranchingComponent: React.FC = () => {
 		return newNode
 	}
 
-	const addEdgeBetweenNodes = (source: string, target: string) => {
+	const linkNodes = ({id: source}: Node, {id: target}: Node) => {
 		const newEdge: Edge = {
 			id: uuidv4(),
 			source,
@@ -80,23 +80,22 @@ export const BranchingComponent: React.FC = () => {
 		const questionNode = addNode(question, newPosition)
 
 		if (selectedNode) {
-			addEdgeBetweenNodes(selectedNode, questionNode.id)
+			linkNodes(selectedNode, questionNode)
 		}
 
 		try {
 			const answer = await fetchOpenAIResponse([{role: 'user', content: question}])
 			const answerNode = addNode(answer, {x: newPosition.x + 200, y: newPosition.y})
-			addEdgeBetweenNodes(questionNode.id, answerNode.id)
+			linkNodes(questionNode, answerNode)
 		} catch (error) {
 			console.error('Error fetching response from OpenAI:', error)
 		}
 
-		setSelectedNode(undefined)
 		handleClose()
 	}
 
-	const onNodeClick = async (event: React.MouseEvent<Element, MouseEvent>, node: Node) => {
-		setSelectedNode(node.id)
+	const onNodeClick: NodeMouseHandler = async (_, node) => {
+		setSelectedNode(node)
 		setOpen(true)
 	}
 
