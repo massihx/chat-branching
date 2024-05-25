@@ -1,12 +1,10 @@
 import React, {useCallback, useRef, useState} from 'react'
 import ReactFlow, {
-	addEdge,
 	Background,
 	Controls,
 	MiniMap,
 	Node,
 	Edge,
-	Position,
 	useNodesState,
 	useEdgesState,
 } from 'reactflow'
