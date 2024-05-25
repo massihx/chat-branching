@@ -1,5 +1,7 @@
 import React, {useCallback, useState} from 'react'
 import ReactFlow, {
+	NodeMouseHandler,
+	addEdge,
 	Background,
 	Controls,
 	MiniMap,
@@ -19,6 +21,7 @@ import {
 	TextField,
 } from '@mui/material'
 import {fetchOpenAIResponse} from '@/utils/openai'
+import {v4 as uuidv4} from 'uuid'
 
 const initialNodes: Node[] = []
 const initialEdges: Edge[] = []
@@ -28,46 +31,62 @@ export const BranchingComponent: React.FC = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
-	const [nodeId, setNodeId] = useState(1)
+	const [selectedNode, setSelectedNode] = useState<Node>()
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
 	}, [])
 
-	const handleClose = () => {
+	const handleClose = useCallback(() => {
 		setOpen(false)
 		setQuestion('')
+		setSelectedNode(undefined)
+	}, [])
+
+	const calculateNewPosition = (existingNodeId?: Node): {x: number; y: number} => {
+		if (existingNodeId) {
+			const existingNode = nodes.find(node => node.id === existingNodeId.id)
+
+			if (existingNode) {
+				return {x: existingNode.position.x + 200, y: existingNode.position.y + 50}
+			}
+		}
+
+		return {x: Math.random() * 400, y: Math.random() * 400}
+	}
+
+	const addNode = (label: string, position: {x: number; y: number}): Node => {
+		const newNode: Node = {
+			id: uuidv4(),
+			data: {label},
+			position,
+		}
+		setNodes(nds => [...nds, newNode])
+		return newNode
+	}
+
+	const linkNodes = ({id: source}: Node, {id: target}: Node) => {
+		const newEdge: Edge = {
+			id: uuidv4(),
+			source,
+			target,
+			type: 'smoothstep',
+		}
+		setEdges(eds => [...eds, newEdge])
 	}
 
 	const handleSubmit = async () => {
-		const newNodeId = `node-${nodeId}`
-		const questionNode: Node = {
-			id: newNodeId,
-			data: {label: question},
-			position: {x: Math.random() * 400, y: Math.random() * 400},
-		}
+		const newPosition = calculateNewPosition(selectedNode)
+		const questionNode = addNode(question, newPosition)
 
-		setNodes(nds => [...nds, questionNode])
-		setNodeId(id => id + 1)
+		if (selectedNode) {
+			linkNodes(selectedNode, questionNode)
+		}
 
 		try {
 			const answer = await fetchOpenAIResponse([{role: 'user', content: question}])
-			const answerNode: Node = {
-				id: `node-${nodeId + 1}`,
-				data: {label: answer},
-				position: {x: questionNode.position.x + 200, y: questionNode.position.y},
-			}
-			setNodes(nds => [...nds, questionNode, answerNode])
-			setEdges(eds => [
-				...eds,
-				{
-					id: `edge-${nodeId}`,
-					source: newNodeId,
-					target: `node-${nodeId + 1}`,
-					type: 'smoothstep',
-				},
-			])
-			setNodeId(id => id + 1)
+			const answerNode = addNode(answer, {x: newPosition.x + 200, y: newPosition.y})
+			linkNodes(questionNode, answerNode)
 		} catch (error) {
 			console.error('Error fetching response from OpenAI:', error)
 		}
@@ -75,14 +94,20 @@ export const BranchingComponent: React.FC = () => {
 		handleClose()
 	}
 
+	const onNodeClick: NodeMouseHandler = async (_, node) => {
+		setSelectedNode(node)
+		setOpen(true)
+	}
+
 	return (
-		<Box sx={{height: '100vh', width: '100vw'}}>
+		<Box sx={{flexGrow: 1}}>
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
 				onPaneClick={onClickCanvas}
+				onNodeClick={onNodeClick}
 				fitView
 			>
 				<MiniMap />
