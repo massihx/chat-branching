@@ -4,8 +4,7 @@ export const fetchOpenAIResponse = async (messages: {role: string; content: stri
 	const openaiApiKey = process.env.OPENAI_API_KEY
 
 	if (!openaiApiKey) {
-		return "This is the mock response from the OpenAI API"
-		// throw new Error('Missing OpenAI API key. Set OPENAI_API_KEY in .env')
+		throw new Error('Missing OpenAI API key. Set OPENAI_API_KEY in .env')
 	}
 
 	const response = await fetch('https://api.openai.com/v1/chat/completions', {
