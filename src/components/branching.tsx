@@ -54,14 +54,14 @@ export const BranchingComponent: React.FC = () => {
 					}
 					newNodes.push(messageNode)
 
-					if (index > 0) {
-						newEdges.push({
-							id: `edge-${conversation.id}-${message.id}`,
-							source: `msg-${message.parentId || message.id}`,
-							target: messageNode.id,
-							type: 'smoothstep',
-						})
-					}
+					if (index === 0) return
+
+					newEdges.push({
+						id: `edge-${conversation.id}-${message.id}`,
+						source: `msg-${message.parentId || message.id}`,
+						target: messageNode.id,
+						type: 'smoothstep',
+					})
 				})
 			})
 
