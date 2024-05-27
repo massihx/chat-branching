@@ -121,8 +121,8 @@ export const BranchingComponent: React.FC = () => {
 			const newPosition = calculateNodePosition(selectedNode)
 			let convId = selectedNode?.data.conversationId!
 
-			// Determine the conversation context
-			if (!selectedNode) {
+			// Create a new conversation if user clicked on the canvas
+			if (!convId) {
 				convId = (await createConversation(question)).id
 			}
 
