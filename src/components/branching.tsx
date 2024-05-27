@@ -115,7 +115,9 @@ export const BranchingComponent: React.FC = () => {
 				<Background />
 			</ReactFlow>
 			<Dialog open={open} onClose={handleClose}>
-				<DialogTitle>Start a New Conversation</DialogTitle>
+				<DialogTitle>
+					{selectedNode ? 'Type a question' : 'Start a new conversation'}
+				</DialogTitle>
 				<DialogContent>
 					<TextField
 						autoFocus
