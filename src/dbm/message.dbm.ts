@@ -1,7 +1,6 @@
 'use server'
 
-import {Message} from '@/types/message'
-import {PrismaClient} from '@prisma/client'
+import {Message, PrismaClient} from '@prisma/client'
 
 const prisma = new PrismaClient()
 

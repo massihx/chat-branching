@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react'
+import React, {useCallback, useEffect, useState} from 'react'
 import ReactFlow, {
 	NodeMouseHandler,
 	addEdge,
@@ -22,10 +22,15 @@ import {
 } from '@mui/material'
 import {fetchOpenAIResponse} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
-import {createConversation} from '@/dbm/conversation.dbm'
+import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
 import {createMessage} from '@/dbm/message.dbm'
+import {Message} from '@prisma/client'
 
-const initialNodes: Node[] = []
+type NodeWithData = Node<
+	Partial<Message> & {id: Message['id']; content: Message['content']; label: Message['content']}
+>
+
+const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
 
 export const BranchingComponent: React.FC = () => {
@@ -33,7 +38,38 @@ export const BranchingComponent: React.FC = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
-	const [selectedNode, setSelectedNode] = useState<Node>()
+	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
+
+	useEffect(() => {
+		;(async () => {
+			const conversations = await getAllConversations(true)
+			const newNodes: NodeWithData[] = []
+			const newEdges: Edge[] = []
+
+			conversations.forEach(conversation => {
+				conversation.messages.forEach((message, index) => {
+					const messageNode: NodeWithData = {
+						id: `msg-${message.id}`,
+						data: {...message, label: message.content},
+						position: {x: 100 * index, y: 100 + 50 * newNodes.length},
+					}
+					newNodes.push(messageNode)
+
+					if (index > 0) {
+						newEdges.push({
+							id: `edge-${conversation.id}-${message.id}`,
+							source: `msg-${message.parentId || message.id}`,
+							target: messageNode.id,
+							type: 'smoothstep',
+						})
+					}
+				})
+			})
+
+			setNodes(newNodes)
+			setEdges(newEdges)
+		})()
+	}, [setEdges, setNodes])
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
@@ -45,7 +81,7 @@ export const BranchingComponent: React.FC = () => {
 		setSelectedNode(undefined)
 	}, [])
 
-	const calculateNewPosition = (existingNodeId?: Node): {x: number; y: number} => {
+	const calculateNodePosition = (existingNodeId?: NodeWithData): {x: number; y: number} => {
 		if (existingNodeId) {
 			const existingNode = nodes.find(node => node.id === existingNodeId.id)
 
@@ -57,17 +93,20 @@ export const BranchingComponent: React.FC = () => {
 		return {x: Math.random() * 400, y: Math.random() * 400}
 	}
 
-	const addNode = (label: string, position: {x: number; y: number}): Node => {
-		const newNode: Node = {
+	const addNode = (
+		data: {content: string; id: number},
+		position: {x: number; y: number},
+	): NodeWithData => {
+		const newNode: NodeWithData = {
 			id: uuidv4(),
-			data: {label},
+			data: {...data, label: data.content},
 			position,
 		}
 		setNodes(nds => [...nds, newNode])
 		return newNode
 	}
 
-	const linkNodes = ({id: source}: Node, {id: target}: Node) => {
+	const linkNodes = ({id: source}: NodeWithData, {id: target}: NodeWithData) => {
 		const newEdge: Edge = {
 			id: uuidv4(),
 			source,
@@ -78,29 +117,32 @@ export const BranchingComponent: React.FC = () => {
 	}
 
 	const handleSubmit = async () => {
-		const newPosition = calculateNewPosition(selectedNode)
-		const questionNode = addNode(question, newPosition)
-
-		// This will take care of branching new question to existing node
-		if (selectedNode) {
-			linkNodes(selectedNode, questionNode)
-		}
-
 		try {
-			const [conversation, answer] = await Promise.all([
-				createConversation(question),
+			const newPosition = calculateNodePosition(selectedNode)
+			let convId = selectedNode?.data.conversationId!
+
+			// Determine the conversation context
+			if (!selectedNode) {
+				convId = (await createConversation(question)).id
+			}
+
+			// Crate question message on the backend and get the answer from OpenAI
+			const [newQuestion, answer] = await Promise.all([
+				createMessage(question, 'user', convId, selectedNode?.data.id),
 				fetchOpenAIResponse([{role: 'user', content: question}]),
 			])
 
-			const newQuestion = await createMessage(
-				question,
-				'user',
-				conversation.id,
-				Number(selectedNode?.id),
-			)
-			createMessage(answer, 'bot', conversation.id, newQuestion.id)
+			// Create answer message on the backend
+			const newAnswer = await createMessage(answer, 'bot', convId, newQuestion.id)
 
-			const answerNode = addNode(answer, {x: newPosition.x + 200, y: newPosition.y})
+			// Update the UI with the new nodes and link them
+			const questionNode = addNode(newQuestion, newPosition)
+			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y})
+
+			if (selectedNode) {
+				linkNodes(selectedNode, questionNode)
+			}
+
 			linkNodes(questionNode, answerNode)
 		} catch (error: any) {
 			console.error(error.message, error)
