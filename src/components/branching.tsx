@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react'
 import ReactFlow, {
 	NodeMouseHandler,
-	addEdge,
 	Background,
 	Controls,
 	MiniMap,
@@ -41,7 +40,7 @@ export const BranchingComponent: React.FC = () => {
 	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
 
 	useEffect(() => {
-		;(async () => {
+		const fetchData = async () => {
 			const conversations = await getAllConversations(true)
 			const newNodes: NodeWithData[] = []
 			const newEdges: Edge[] = []
@@ -68,7 +67,9 @@ export const BranchingComponent: React.FC = () => {
 
 			setNodes(newNodes)
 			setEdges(newEdges)
-		})()
+		}
+
+		fetchData()
 	}, [setEdges, setNodes])
 
 	const onClickCanvas = useCallback(() => {
