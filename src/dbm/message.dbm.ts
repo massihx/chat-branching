@@ -32,8 +32,8 @@ export const getMessagesByConversationId = async (conversationId: number): Promi
 export const createMessage = async (
 	content: string,
 	role: string,
-	parentId: number | null,
 	conversationId: number,
+	parentId?: number,
 ): Promise<Message> => {
 	// Check if the conversationId exists
 	const conversationExists = await prisma.conversation.findUnique({

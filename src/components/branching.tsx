@@ -22,6 +22,8 @@ import {
 } from '@mui/material'
 import {fetchOpenAIResponse} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
+import {createConversation} from '@/dbm/conversation.dbm'
+import {createMessage} from '@/dbm/message.dbm'
 
 const initialNodes: Node[] = []
 const initialEdges: Edge[] = []
@@ -79,16 +81,29 @@ export const BranchingComponent: React.FC = () => {
 		const newPosition = calculateNewPosition(selectedNode)
 		const questionNode = addNode(question, newPosition)
 
+		// This will take care of branching new question to existing node
 		if (selectedNode) {
 			linkNodes(selectedNode, questionNode)
 		}
 
 		try {
-			const answer = await fetchOpenAIResponse([{role: 'user', content: question}])
+			const [conversation, answer] = await Promise.all([
+				createConversation(question),
+				fetchOpenAIResponse([{role: 'user', content: question}]),
+			])
+
+			const newQuestion = await createMessage(
+				question,
+				'user',
+				conversation.id,
+				Number(selectedNode?.id),
+			)
+			createMessage(answer, 'bot', conversation.id, newQuestion.id)
+
 			const answerNode = addNode(answer, {x: newPosition.x + 200, y: newPosition.y})
 			linkNodes(questionNode, answerNode)
-		} catch (error) {
-			console.error('Error fetching response from OpenAI:', error)
+		} catch (error: any) {
+			console.error(error.message, error)
 		}
 
 		handleClose()
