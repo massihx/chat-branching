@@ -26,6 +26,17 @@ import {v4 as uuidv4} from 'uuid'
 const initialNodes: Node[] = []
 const initialEdges: Edge[] = []
 
+const questionNodeStyle: Node['style'] = {
+	background: '#f9f9f9',
+	color: '#333',
+	border: '1px solid #333',
+}
+
+const answerNodeStyle: Node['style'] = {
+	background: '#333',
+	color: '#f9f9f9',
+}
+
 export const BranchingComponent: React.FC = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -55,11 +66,16 @@ export const BranchingComponent: React.FC = () => {
 		return {x: Math.random() * 400, y: Math.random() * 400}
 	}
 
-	const addNode = (label: string, position: {x: number; y: number}): Node => {
+	const addNode = (
+		label: string,
+		position: {x: number; y: number},
+		style?: Node['style'],
+	): Node => {
 		const newNode: Node = {
 			id: uuidv4(),
 			data: {label},
 			position,
+			style,
 		}
 		setNodes(nds => [...nds, newNode])
 		return newNode
@@ -77,7 +93,7 @@ export const BranchingComponent: React.FC = () => {
 
 	const handleSubmit = async () => {
 		const newPosition = calculateNewPosition(selectedNode)
-		const questionNode = addNode(question, newPosition)
+		const questionNode = addNode(question, newPosition, questionNodeStyle)
 
 		if (selectedNode) {
 			linkNodes(selectedNode, questionNode)
@@ -85,7 +101,11 @@ export const BranchingComponent: React.FC = () => {
 
 		try {
 			const answer = await fetchOpenAIResponse([{role: 'user', content: question}])
-			const answerNode = addNode(answer, {x: newPosition.x + 200, y: newPosition.y})
+			const answerNode = addNode(
+				answer,
+				{x: newPosition.x + 200, y: newPosition.y},
+				answerNodeStyle,
+			)
 			linkNodes(questionNode, answerNode)
 		} catch (error) {
 			console.error('Error fetching response from OpenAI:', error)
