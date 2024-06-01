@@ -1,7 +1,6 @@
-import React, {useCallback, useState} from 'react'
+import React, {useCallback, useEffect, useState} from 'react'
 import ReactFlow, {
 	NodeMouseHandler,
-	addEdge,
 	Background,
 	Controls,
 	MiniMap,
@@ -23,8 +22,15 @@ import {
 } from '@mui/material'
 import {fetchOpenAIResponse} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
+import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
+import {createMessage} from '@/dbm/message.dbm'
+import {Message} from '@prisma/client'
 
-const initialNodes: Node[] = []
+type NodeWithData = Node<
+	Partial<Message> & {id: Message['id']; content: Message['content']; label: Message['content']}
+>
+
+const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
 
 const questionNodeStyle: Node['style'] = {
@@ -43,7 +49,46 @@ export const BranchingComponent: React.FC = () => {
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
-	const [selectedNode, setSelectedNode] = useState<Node>()
+	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
+
+	useEffect(() => {
+		const fetchData = async () => {
+			const conversations = await getAllConversations(true)
+			const newNodes: NodeWithData[] = []
+			const newEdges: Edge[] = []
+
+			conversations.forEach(conversation => {
+				conversation.messages.forEach((message, index) => {
+					const messageNode: NodeWithData = {
+						id: `msg-${message.id}`,
+						data: {...message, label: message.content},
+						position: {x: 100 * index, y: 100 + 50 * newNodes.length},
+						style: message.role === 'user' ? questionNodeStyle : answerNodeStyle,
+					}
+					newNodes.push(messageNode)
+
+					if (index === 0) return
+
+					newEdges.push({
+						id: `edge-${conversation.id}-${message.id}`,
+						source: `msg-${message.parentId || message.id}`,
+						target: messageNode.id,
+						type: 'smoothstep',
+						markerEnd: {
+							type: MarkerType.ArrowClosed,
+							width: 20,
+							height: 20,
+						},
+					})
+				})
+			})
+
+			setNodes(newNodes)
+			setEdges(newEdges)
+		}
+
+		fetchData()
+	}, [setEdges, setNodes])
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
@@ -55,7 +100,7 @@ export const BranchingComponent: React.FC = () => {
 		setSelectedNode(undefined)
 	}, [])
 
-	const calculateNewPosition = (existingNodeId?: Node): {x: number; y: number} => {
+	const calculateNodePosition = (existingNodeId?: NodeWithData): {x: number; y: number} => {
 		if (existingNodeId) {
 			const existingNode = nodes.find(node => node.id === existingNodeId.id)
 
@@ -68,13 +113,13 @@ export const BranchingComponent: React.FC = () => {
 	}
 
 	const addNode = (
-		label: string,
+		data: {content: string; id: number},
 		position: {x: number; y: number},
 		style?: Node['style'],
-	): Node => {
-		const newNode: Node = {
+	): NodeWithData => {
+		const newNode: NodeWithData = {
 			id: uuidv4(),
-			data: {label},
+			data: {...data, label: data.content},
 			position,
 			style,
 		}
@@ -82,7 +127,7 @@ export const BranchingComponent: React.FC = () => {
 		return newNode
 	}
 
-	const linkNodes = ({id: source}: Node, {id: target}: Node) => {
+	const linkNodes = ({id: source}: NodeWithData, {id: target}: NodeWithData) => {
 		const newEdge: Edge = {
 			id: uuidv4(),
 			source,
@@ -90,29 +135,47 @@ export const BranchingComponent: React.FC = () => {
 			type: 'smoothstep',
 			markerEnd: {
 				type: MarkerType.ArrowClosed,
+				width: 20,
+				height: 20,
 			},
 		}
 		setEdges(eds => [...eds, newEdge])
 	}
 
 	const handleSubmit = async () => {
-		const newPosition = calculateNewPosition(selectedNode)
-		const questionNode = addNode(question, newPosition, questionNodeStyle)
-
-		if (selectedNode) {
-			linkNodes(selectedNode, questionNode)
-		}
-
 		try {
-			const answer = await fetchOpenAIResponse([{role: 'user', content: question}])
+			const newPosition = calculateNodePosition(selectedNode)
+			let convId = selectedNode?.data.conversationId!
+
+			// Create a new conversation if user clicked on the canvas
+			if (!convId) {
+				convId = (await createConversation(question)).id
+			}
+
+			// Crate question message on the backend and get the answer from OpenAI
+			const [newQuestion, answer] = await Promise.all([
+				createMessage(question, 'user', convId, selectedNode?.data.id),
+				fetchOpenAIResponse([{role: 'user', content: question}]),
+			])
+
+			// Create answer message on the backend
+			const newAnswer = await createMessage(answer, 'bot', convId, newQuestion.id)
+
+			// Update the UI with the new nodes and link them
+			const questionNode = addNode(newQuestion, newPosition, questionNodeStyle)
 			const answerNode = addNode(
-				answer,
+				newAnswer,
 				{x: newPosition.x + 200, y: newPosition.y},
 				answerNodeStyle,
 			)
+
+			if (selectedNode) {
+				linkNodes(selectedNode, questionNode)
+			}
+
 			linkNodes(questionNode, answerNode)
-		} catch (error) {
-			console.error('Error fetching response from OpenAI:', error)
+		} catch (error: any) {
+			console.error(error.message, error)
 		}
 
 		handleClose()
@@ -139,7 +202,9 @@ export const BranchingComponent: React.FC = () => {
 				<Background />
 			</ReactFlow>
 			<Dialog open={open} onClose={handleClose}>
-				<DialogTitle>Start a New Conversation</DialogTitle>
+				<DialogTitle>
+					{selectedNode ? 'Type a question' : 'Start a new conversation'}
+				</DialogTitle>
 				<DialogContent>
 					<TextField
 						autoFocus

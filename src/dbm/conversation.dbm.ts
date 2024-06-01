@@ -6,8 +6,8 @@ import {PrismaClient} from '@prisma/client'
 const prisma = new PrismaClient()
 
 // Get all conversations
-export const getAllConversations = async () => {
-	return await prisma.conversation.findMany()
+export const getAllConversations = async (includeMessages = false) => {
+	return await prisma.conversation.findMany({include: {messages: includeMessages}})
 }
 
 // Get a conversation by ID
