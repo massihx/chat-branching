@@ -9,6 +9,7 @@ import ReactFlow, {
 	Edge,
 	useNodesState,
 	useEdgesState,
+	MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
@@ -87,6 +88,9 @@ export const BranchingComponent: React.FC = () => {
 			source,
 			target,
 			type: 'smoothstep',
+			markerEnd: {
+				type: MarkerType.ArrowClosed,
+			},
 		}
 		setEdges(eds => [...eds, newEdge])
 	}
