@@ -4,7 +4,6 @@ import ReactFlow, {
 	Background,
 	Controls,
 	MiniMap,
-	Node,
 	Edge,
 	useNodesState,
 	useEdgesState,
@@ -25,11 +24,9 @@ import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
 import {createMessage} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
-import {MarkdownNodeProps, MarkdownNodeType} from './MarkdownNode/MarkdownNode'
+import {MarkdownNode, MarkdownNodeProps} from './MarkdownNode/MarkdownNode'
 
-type NodeWithData = Node<
-	Partial<Message> & MarkdownNodeProps['data'] & {id: Message['id']; label: Message['content']}
->
+type NodeWithData = MarkdownNodeProps<Partial<Message> & {id: Message['id']}>['data']
 
 const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
@@ -54,9 +51,8 @@ export const BranchingComponent: React.FC = () => {
 					const messageNode: NodeWithData = {
 						id: `msg-${message.id}`,
 						type: 'markdownNode',
-						data: {...message, label: message.content, nodeType},
+						data: {message, content: message.content, nodeType},
 						position: {x: 100 * index, y: 100 + 50 * newNodes.length},
-						// style: nodeType === 'question' ? questionNodeStyle : answerNodeStyle,
 					}
 					newNodes.push(messageNode)
 
@@ -112,7 +108,12 @@ export const BranchingComponent: React.FC = () => {
 	): NodeWithData => {
 		const newNode: NodeWithData = {
 			id: uuidv4(),
-			data: {...data, label: data.content, nodeType: isQuestion ? 'question' : 'answer'},
+			type: 'markdownNode',
+			data: {
+				message: data,
+				content: data.content,
+				nodeType: isQuestion ? 'question' : 'answer',
+			},
 			position,
 		}
 		setNodes(nds => [...nds, newNode])
@@ -137,16 +138,16 @@ export const BranchingComponent: React.FC = () => {
 	const handleSubmit = async () => {
 		try {
 			const newPosition = calculateNodePosition(selectedNode)
-			let convId = selectedNode?.data.conversationId!
+			let convId = selectedNode?.data?.message?.conversationId!
 
 			// Create a new conversation if user clicked on the canvas
 			if (!convId) {
 				convId = (await createConversation(question)).id
 			}
 
-			// Crate question message on the backend and get the answer from OpenAI
+			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
-				createMessage(question, 'user', convId, selectedNode?.data.id),
+				createMessage(question, 'user', convId, selectedNode?.data?.message?.id),
 				fetchOpenAIResponse([{role: 'user', content: question}]),
 			])
 
@@ -170,8 +171,30 @@ export const BranchingComponent: React.FC = () => {
 	}
 
 	const onNodeClick: NodeMouseHandler = async (_, node) => {
-		setSelectedNode(node)
+		setSelectedNode(node as NodeWithData)
 		setOpen(true)
+	}
+
+	const handleEdit = (node: NodeWithData) => {
+		setNodes(nds =>
+			nds.map(n => (n.id === node.id ? {...n, data: {...n.data, isEditable: true}} : n)),
+		)
+	}
+
+	const handleCopy = (node: NodeWithData) => {
+		// Implement the copy logic here
+		console.log('Copy node', node)
+	}
+
+	const handleDelete = (node: NodeWithData) => {
+		// Implement the delete logic here
+		console.log('Delete node', node)
+		setNodes(nds => nds.filter(n => n.id !== node.id))
+		setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id))
+	}
+
+	const handleContentChange = (id: string, content: string) => {
+		setNodes(nds => nds.map(n => (n.id === id ? {...n, data: {...n.data, content}} : n)))
 	}
 
 	return (
@@ -181,9 +204,22 @@ export const BranchingComponent: React.FC = () => {
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				// onPaneClick={onClickCanvas}
-				// onNodeClick={onNodeClick}
-				nodeTypes={MarkdownNodeType}
+				onNodeClick={onNodeClick}
+				onPaneClick={onClickCanvas}
+				nodeTypes={React.useMemo(() => {
+					return {
+						markdownNode: props => (
+							<MarkdownNode
+								{...props}
+								data={props.data}
+								onEdit={handleEdit}
+								onCopy={handleCopy}
+								onDelete={handleDelete}
+								// onContentChange={handleContentChange}
+							/>
+						),
+					}
+				}, [])}
 				fitView
 			>
 				<MiniMap />
