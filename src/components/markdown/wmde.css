@@ -98,8 +98,6 @@
 	font-size: 16px;
 	line-height: 1.5;
 	word-wrap: break-word;
-	color: var(--color-fg-default);
-	/* background-color: var(--color-canvas-default); */
 }
 .wmde-markdown details,
 .wmde-markdown figcaption,

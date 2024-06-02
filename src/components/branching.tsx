@@ -25,24 +25,14 @@ import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
 import {createMessage} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
+import {MarkdownNodeProps, MarkdownNodeType} from './MarkdownNode/MarkdownNode'
 
 type NodeWithData = Node<
-	Partial<Message> & {id: Message['id']; content: Message['content']; label: Message['content']}
+	Partial<Message> & MarkdownNodeProps['data'] & {id: Message['id']; label: Message['content']}
 >
 
 const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
-
-const questionNodeStyle: Node['style'] = {
-	background: '#f9f9f9',
-	color: '#333',
-	border: '1px solid #333',
-}
-
-const answerNodeStyle: Node['style'] = {
-	background: '#333',
-	color: '#f9f9f9',
-}
 
 export const BranchingComponent: React.FC = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
@@ -59,11 +49,14 @@ export const BranchingComponent: React.FC = () => {
 
 			conversations.forEach(conversation => {
 				conversation.messages.forEach((message, index) => {
+					const nodeType = message.role === 'user' ? 'question' : 'answer'
+
 					const messageNode: NodeWithData = {
 						id: `msg-${message.id}`,
-						data: {...message, label: message.content},
+						type: 'markdownNode',
+						data: {...message, label: message.content, nodeType},
 						position: {x: 100 * index, y: 100 + 50 * newNodes.length},
-						style: message.role === 'user' ? questionNodeStyle : answerNodeStyle,
+						// style: nodeType === 'question' ? questionNodeStyle : answerNodeStyle,
 					}
 					newNodes.push(messageNode)
 
@@ -115,13 +108,12 @@ export const BranchingComponent: React.FC = () => {
 	const addNode = (
 		data: {content: string; id: number},
 		position: {x: number; y: number},
-		style?: Node['style'],
+		isQuestion: boolean,
 	): NodeWithData => {
 		const newNode: NodeWithData = {
 			id: uuidv4(),
-			data: {...data, label: data.content},
+			data: {...data, label: data.content, nodeType: isQuestion ? 'question' : 'answer'},
 			position,
-			style,
 		}
 		setNodes(nds => [...nds, newNode])
 		return newNode
@@ -162,12 +154,8 @@ export const BranchingComponent: React.FC = () => {
 			const newAnswer = await createMessage(answer, 'bot', convId, newQuestion.id)
 
 			// Update the UI with the new nodes and link them
-			const questionNode = addNode(newQuestion, newPosition, questionNodeStyle)
-			const answerNode = addNode(
-				newAnswer,
-				{x: newPosition.x + 200, y: newPosition.y},
-				answerNodeStyle,
-			)
+			const questionNode = addNode(newQuestion, newPosition, true)
+			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y}, false)
 
 			if (selectedNode) {
 				linkNodes(selectedNode, questionNode)
@@ -193,8 +181,9 @@ export const BranchingComponent: React.FC = () => {
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				onPaneClick={onClickCanvas}
-				onNodeClick={onNodeClick}
+				// onPaneClick={onClickCanvas}
+				// onNodeClick={onNodeClick}
+				nodeTypes={MarkdownNodeType}
 				fitView
 			>
 				<MiniMap />
