@@ -13,6 +13,23 @@ export const getMessageById = async (id: number) => {
 	})
 }
 
+export const getParentMessages = async (messageId: number) => {
+	const parentMessages = await prisma.$queryRaw`
+	  WITH RECURSIVE ParentMessages AS (
+		SELECT id, content, role, parentId, createdAt, conversationId
+		FROM "Message"
+		WHERE id = ${messageId}
+		UNION ALL
+		SELECT m.id, m.content, m.role, m.parentId, m.createdAt, m.conversationId
+		FROM "Message" m
+		INNER JOIN ParentMessages pm ON pm.parentId = m.id
+	  )
+	  SELECT * FROM ParentMessages WHERE id != ${messageId};
+	`
+
+	return parentMessages
+}
+
 export const getMessagesByConversationId = async (conversationId: number): Promise<Message[]> => {
 	const messages = await prisma.message.findMany({
 		where: {conversationId},
