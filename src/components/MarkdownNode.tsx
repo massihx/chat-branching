@@ -1,7 +1,6 @@
 import React, {useState} from 'react'
 import {Handle, Position, Node as ReactFlowNode, NodeProps} from 'reactflow'
 import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
-import styles from './MarkdownNode.module.css'
 import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
 import {MarkdownViewer} from './markdown/MDPreview'
 import {Box} from '@mui/material'
@@ -25,7 +24,6 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 	const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false)
 
 	const isQuestionNode = data.nodeType === 'question'
-	const nodeStyle = isQuestionNode ? styles.questionNode : styles.answerNode
 
 	const showConfirmDeleteDialog = () => {
 		setConfirmDeleteDialog(true)
@@ -42,24 +40,23 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 			borderRadius: '8px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
 		},
-		nodeStyle:
-			data.nodeType === 'question'
-				? {
-						background: '#e8f0fe',
-						color: '#1a73e8',
-						border: '1px solid #d2e3fc',
-						'& svg': {
-							cursor: 'pointer',
-						},
-				  }
-				: {
-						background: '#f1f3f4',
+		nodeStyle: isQuestionNode
+			? {
+					background: '#e8f0fe',
+					color: '#1a73e8',
+					border: '1px solid #d2e3fc',
+					'& svg': {
+						cursor: 'pointer',
+					},
+			  }
+			: {
+					background: '#f1f3f4',
+					color: '#202124',
+					border: '1px solid #dadce0',
+					'& svg': {
 						color: '#202124',
-						border: '1px solid #dadce0',
-						'& svg': {
-							color: '#202124',
-						},
-				  },
+					},
+			  },
 		markdownNodeContent: {
 			padding: '5px',
 		},
