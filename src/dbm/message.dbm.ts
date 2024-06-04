@@ -93,3 +93,24 @@ export const deleteMessage = async (id: number) => {
 		where: {id},
 	})
 }
+
+export const deleteMessageWithChildren = async (messageId: number) => {
+	const result = await prisma.$executeRaw`
+    WITH RECURSIVE MessageTree AS (
+      SELECT id
+      FROM "Message"
+      WHERE id = ${messageId}
+      UNION ALL
+      SELECT m.id
+      FROM "Message" m
+      INNER JOIN MessageTree mt ON m."parentId" = mt.id
+    )
+    DELETE FROM "Message"
+    WHERE id IN (SELECT id FROM MessageTree)
+    RETURNING id;
+  `
+
+	console.log(result)
+
+	return result
+}
