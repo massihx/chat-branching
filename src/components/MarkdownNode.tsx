@@ -2,8 +2,9 @@ import React, {useState} from 'react'
 import {Handle, Position, Node as ReactFlowNode, NodeProps} from 'reactflow'
 import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
 import styles from './MarkdownNode.module.css'
-import {MarkdownViewer} from '../markdown/MDPreview'
 import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
+import {MarkdownViewer} from './markdown/MDPreview'
+import {Box} from '@mui/material'
 
 export interface MarkdownNodeData<T> {
 	content: string
@@ -34,29 +35,71 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 		setConfirmDeleteDialog(false)
 	}
 
+	const sxStyles = {
+		markdownNode: {
+			position: 'relative',
+			padding: '12px',
+			borderRadius: '8px',
+			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+		},
+		nodeStyle:
+			data.nodeType === 'question'
+				? {
+						background: '#e8f0fe',
+						color: '#1a73e8',
+						border: '1px solid #d2e3fc',
+						'& svg': {
+							cursor: 'pointer',
+						},
+				  }
+				: {
+						background: '#f1f3f4',
+						color: '#202124',
+						border: '1px solid #dadce0',
+						'& svg': {
+							color: '#202124',
+						},
+				  },
+		markdownNodeContent: {
+			padding: '5px',
+		},
+		markdownNodeActions: {
+			position: 'absolute',
+			top: '-20px',
+			right: '-20px',
+			display: 'flex',
+			gap: '8px',
+			background: 'rgba(255, 255, 255, 0.9)',
+			borderRadius: '8px',
+			padding: '5px',
+			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+			'& svg': {
+				cursor: 'pointer',
+			},
+		},
+	}
 	return (
-		<div
-			className={`${styles.markdownNode} ${nodeStyle}`}
+		<Box
+			sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 		>
-			<div className={styles.markdownNodeContent}>
+			<Box sx={sxStyles.markdownNodeContent}>
 				{isEditable ? (
 					<textarea defaultValue={data.content} />
 				) : (
 					<MarkdownViewer value={data.content} />
 				)}
-			</div>
+			</Box>
 			{isHovered && (
-				<div className={styles.markdownNodeActions}>
+				<Box sx={sxStyles.markdownNodeActions}>
 					<FiEdit onClick={() => onEdit(node)} />
 					<FiPlus onClick={() => onCopy(node)} />
-					{isQuestionNode && <FiTrash2 onClick={showConfirmDeleteDialog} />}
-				</div>
+					<FiTrash2 onClick={() => onDelete(node)} />
+				</Box>
 			)}
 			<Handle type="source" position={Position.Top} />
 			<Handle type="target" position={Position.Bottom} />
-
 			<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
 				<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
 				<DialogActions>
@@ -64,7 +107,7 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 					<Button onClick={() => onDelete(node)}>Yes</Button>
 				</DialogActions>
 			</Dialog>
-		</div>
+		</Box>
 	)
 }
 

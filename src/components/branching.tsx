@@ -25,7 +25,7 @@ import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
 import {createMessage, getParentMessages} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
-import {MarkdownNode, MarkdownNodeData} from './MarkdownNode/MarkdownNode'
+import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
 
 type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message> & {id: Message['id']}>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
