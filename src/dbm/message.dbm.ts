@@ -15,7 +15,7 @@ export const getMessageById = async (id: number) => {
 
 export const getParentMessages = async (messageId: number) => {
 	const parentMessages = await prisma.$queryRaw<Message[]>`
-	  WITH RECURSIVE ParentMessages AS (
+		WITH RECURSIVE ParentMessages AS (
 		SELECT id, content, role, parentId, createdAt, conversationId
 		FROM "Message"
 		WHERE id = ${messageId}
@@ -23,8 +23,8 @@ export const getParentMessages = async (messageId: number) => {
 		SELECT m.id, m.content, m.role, m.parentId, m.createdAt, m.conversationId
 		FROM "Message" m
 		INNER JOIN ParentMessages pm ON pm.parentId = m.id
-	  )
-	  SELECT * FROM ParentMessages WHERE id != ${messageId};
+		)
+		SELECT * FROM ParentMessages WHERE id != ${messageId};
 	`
 
 	return parentMessages
@@ -106,9 +106,8 @@ export const deleteMessageWithChildren = async (messageId: number) => {
       INNER JOIN MessageTree mt ON m."parentId" = mt.id
     )
     DELETE FROM "Message"
-    WHERE id IN (SELECT id FROM MessageTree)
-    RETURNING id;
-  `
+    WHERE id IN (SELECT id FROM MessageTree);
+	`
 
 	console.log(result)
 
