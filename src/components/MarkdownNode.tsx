@@ -1,5 +1,5 @@
 import React, {useState} from 'react'
-import {Handle, Position, Node as ReactFlowNode, NodeProps} from 'reactflow'
+import {Handle, Position, NodeProps} from 'reactflow'
 import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
 import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
 import {MarkdownViewer} from './markdown/MDPreview'
@@ -13,11 +13,11 @@ export interface MarkdownNodeData<T> {
 
 export interface MarkdownNodeProps<T> extends NodeProps {
 	onEdit: (node: NodeProps<MarkdownNodeData<T>>) => void
-	onCopy: (node: NodeProps<MarkdownNodeData<T>>) => void
+	onExtend: (node: NodeProps<MarkdownNodeData<T>>) => void
 	onDelete: (node: NodeProps<MarkdownNodeData<T>>) => void
 }
 
-export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNodeProps<T>) => {
+export const MarkdownNode = <T,>({onEdit, onExtend, onDelete, ...node}: MarkdownNodeProps<T>) => {
 	const {id, data} = node
 	const [isHovered, setIsHovered] = useState(false)
 	const [isEditable, setIsEditable] = useState(false)
@@ -75,6 +75,7 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 			},
 		},
 	}
+
 	return (
 		<Box
 			sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
@@ -90,9 +91,16 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 			</Box>
 			{isHovered && (
 				<Box sx={sxStyles.markdownNodeActions}>
-					<FiEdit onClick={() => onEdit(node)} />
-					<FiPlus onClick={() => onCopy(node)} />
-					<FiTrash2 onClick={() => onDelete(node)} />
+					{isQuestionNode ? (
+						<>
+							<FiTrash2 onClick={showConfirmDeleteDialog} />
+						</>
+					) : (
+						<>
+							<FiEdit onClick={() => onEdit(node)} />
+							<FiPlus onClick={() => onExtend(node)} />
+						</>
+					)}
 				</Box>
 			)}
 			<Handle type="source" position={Position.Top} />
@@ -101,7 +109,14 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 				<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
 				<DialogActions>
 					<Button onClick={closeConfirmDeleteDialog}>No</Button>
-					<Button onClick={() => onDelete(node)}>Yes</Button>
+					<Button
+						onClick={() => {
+							onDelete(node)
+							closeConfirmDeleteDialog()
+						}}
+					>
+						Yes
+					</Button>
 				</DialogActions>
 			</Dialog>
 		</Box>

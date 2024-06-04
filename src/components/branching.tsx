@@ -9,6 +9,7 @@ import ReactFlow, {
 	useEdgesState,
 	MarkerType,
 	Node,
+	NodeProps,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
@@ -23,7 +24,7 @@ import {
 import {fetchOpenAIResponse, GptMessage} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
-import {createMessage, getParentMessages} from '@/dbm/message.dbm'
+import {createMessage, deleteMessageWithChildren, getParentMessages} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
 import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
 
@@ -190,22 +191,46 @@ export const BranchingComponent: React.FC = () => {
 		setOpen(true)
 	}
 
-	const handleEdit = (node: any) => {
-		setNodes(nds =>
-			nds.map(n => (n.id === node.id ? {...n, data: {...n.data, isEditable: true}} : n)),
-		)
+	const handleEditNode = (nodeId: NodeProps<MarkdownNodeDataProps>) => {
+		// Implement your edit logic here
+		console.log(`Edit node ${nodeId}`)
 	}
 
-	const handleCopy = (node: any) => {
-		// Implement the copy logic here
-		console.log('Copy node', node)
+	const handleDeleteNode = async (node: NodeProps<MarkdownNodeDataProps>) => {
+		try {
+			const nodeId = node.id
+
+			await deleteMessageWithChildren(node.data.message.id)
+
+			setNodes(currentNodes => {
+				// Set to keep track of nodes to delete, starting with the selected node
+				const nodesToDelete = new Set([nodeId])
+				const edgesToDelete = new Set<string>()
+
+				setEdges(currentEdges => {
+					// Iterate over edges to find and mark all connected child nodes and their edges
+					currentEdges.forEach(edge => {
+						if (nodesToDelete.has(edge.source)) {
+							nodesToDelete.add(edge.target)
+							edgesToDelete.add(edge.id)
+						}
+					})
+
+					// Return updated edges, excluding those marked for deletion
+					return currentEdges.filter(edge => !edgesToDelete.has(edge.id))
+				})
+
+				// Return updated nodes, excluding those marked for deletion
+				return currentNodes.filter(node => !nodesToDelete.has(node.id))
+			})
+		} catch (error: any) {
+			console.error(error.message, error)
+		}
 	}
 
-	const handleDelete = (node: any) => {
-		// Implement the delete logic here
-		console.log('Delete node', node)
-		setNodes(nds => nds.filter(n => n.id !== node.id))
-		setEdges(eds => eds.filter(e => e.source !== node.id && e.target !== node.id))
+	const handleExtend = (node: NodeProps<MarkdownNodeDataProps>) => {
+		setSelectedNode(node as unknown as NodeWithData)
+		setOpen(true)
 	}
 
 	const handleContentChange = (id: string, content: string) => {
@@ -219,17 +244,15 @@ export const BranchingComponent: React.FC = () => {
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				// onNodeClick={onNodeClick}
-				onPaneClick={onClickCanvas}
 				nodeTypes={React.useMemo(() => {
 					return {
 						markdownNode: props => (
 							<MarkdownNode
 								{...props}
 								data={props.data}
-								onEdit={handleEdit}
-								onCopy={handleCopy}
-								onDelete={handleDelete}
+								onEdit={handleEditNode}
+								onExtend={handleExtend}
+								onDelete={handleDeleteNode}
 								// onContentChange={handleContentChange}
 							/>
 						),
