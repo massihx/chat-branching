@@ -14,7 +14,7 @@ export const getMessageById = async (id: number) => {
 }
 
 export const getParentMessages = async (messageId: number) => {
-	const parentMessages = await prisma.$queryRaw`
+	const parentMessages = await prisma.$queryRaw<Message[]>`
 	  WITH RECURSIVE ParentMessages AS (
 		SELECT id, content, role, parentId, createdAt, conversationId
 		FROM "Message"

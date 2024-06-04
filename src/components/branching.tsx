@@ -8,6 +8,7 @@ import ReactFlow, {
 	useNodesState,
 	useEdgesState,
 	MarkerType,
+	Node,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
@@ -19,14 +20,15 @@ import {
 	DialogTitle,
 	TextField,
 } from '@mui/material'
-import {fetchOpenAIResponse} from '@/utils/openai'
+import {fetchOpenAIResponse, GptMessage} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
-import {createMessage} from '@/dbm/message.dbm'
+import {createMessage, getParentMessages} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
-import {MarkdownNode, MarkdownNodeProps} from './MarkdownNode/MarkdownNode'
+import {MarkdownNode, MarkdownNodeData} from './MarkdownNode/MarkdownNode'
 
-type NodeWithData = MarkdownNodeProps<Partial<Message> & {id: Message['id']}>['data']
+type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message> & {id: Message['id']}>
+type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
 
 const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
@@ -139,20 +141,33 @@ export const BranchingComponent: React.FC = () => {
 		try {
 			const newPosition = calculateNodePosition(selectedNode)
 			let convId = selectedNode?.data?.message?.conversationId!
+			let messageContext: GptMessage[] = []
 
 			// Create a new conversation if user clicked on the canvas
 			if (!convId) {
 				convId = (await createConversation(question)).id
 			}
 
+			const hasParent = selectedNode?.data?.message?.parentId
+			if (hasParent) {
+				messageContext = (await getParentMessages(selectedNode?.data?.message?.id))
+					.reverse()
+					.map<GptMessage>(({role, content}) => ({
+						role: role as GptMessage['role'],
+						content,
+					}))
+			}
+
+			messageContext.push({role: 'user', content: question})
+
 			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
 				createMessage(question, 'user', convId, selectedNode?.data?.message?.id),
-				fetchOpenAIResponse([{role: 'user', content: question}]),
+				fetchOpenAIResponse(messageContext),
 			])
 
 			// Create answer message on the backend
-			const newAnswer = await createMessage(answer, 'bot', convId, newQuestion.id)
+			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
 
 			// Update the UI with the new nodes and link them
 			const questionNode = addNode(newQuestion, newPosition, true)
@@ -175,18 +190,18 @@ export const BranchingComponent: React.FC = () => {
 		setOpen(true)
 	}
 
-	const handleEdit = (node: NodeWithData) => {
+	const handleEdit = (node: any) => {
 		setNodes(nds =>
 			nds.map(n => (n.id === node.id ? {...n, data: {...n.data, isEditable: true}} : n)),
 		)
 	}
 
-	const handleCopy = (node: NodeWithData) => {
+	const handleCopy = (node: any) => {
 		// Implement the copy logic here
 		console.log('Copy node', node)
 	}
 
-	const handleDelete = (node: NodeWithData) => {
+	const handleDelete = (node: any) => {
 		// Implement the delete logic here
 		console.log('Delete node', node)
 		setNodes(nds => nds.filter(n => n.id !== node.id))

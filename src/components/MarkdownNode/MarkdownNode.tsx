@@ -4,7 +4,7 @@ import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
 import styles from './MarkdownNode.module.css'
 import {MarkdownViewer} from '../markdown/MDPreview'
 
-interface MarkdownNodeData<T> {
+export interface MarkdownNodeData<T> {
 	content: string
 	message: T
 	nodeType: 'answer' | 'question'
