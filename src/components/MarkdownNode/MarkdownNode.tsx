@@ -3,6 +3,7 @@ import {Handle, Position, Node as ReactFlowNode, NodeProps} from 'reactflow'
 import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
 import styles from './MarkdownNode.module.css'
 import {MarkdownViewer} from '../markdown/MDPreview'
+import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
 
 export interface MarkdownNodeData<T> {
 	content: string
@@ -20,8 +21,18 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 	const {id, data} = node
 	const [isHovered, setIsHovered] = useState(false)
 	const [isEditable, setIsEditable] = useState(false)
+	const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false)
 
-	const nodeStyle = data.nodeType === 'question' ? styles.questionNode : styles.answerNode
+	const isQuestionNode = data.nodeType === 'question'
+	const nodeStyle = isQuestionNode ? styles.questionNode : styles.answerNode
+
+	const showConfirmDeleteDialog = () => {
+		setConfirmDeleteDialog(true)
+	}
+
+	const closeConfirmDeleteDialog = () => {
+		setConfirmDeleteDialog(false)
+	}
 
 	return (
 		<div
@@ -40,11 +51,19 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 				<div className={styles.markdownNodeActions}>
 					<FiEdit onClick={() => onEdit(node)} />
 					<FiPlus onClick={() => onCopy(node)} />
-					<FiTrash2 onClick={() => onDelete(node)} />
+					{isQuestionNode && <FiTrash2 onClick={showConfirmDeleteDialog} />}
 				</div>
 			)}
 			<Handle type="source" position={Position.Top} />
 			<Handle type="target" position={Position.Bottom} />
+
+			<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
+				<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
+				<DialogActions>
+					<Button onClick={closeConfirmDeleteDialog}>No</Button>
+					<Button onClick={() => onDelete(node)}>Yes</Button>
+				</DialogActions>
+			</Dialog>
 		</div>
 	)
 }

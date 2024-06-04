@@ -219,7 +219,7 @@ export const BranchingComponent: React.FC = () => {
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				onNodeClick={onNodeClick}
+				// onNodeClick={onNodeClick}
 				onPaneClick={onClickCanvas}
 				nodeTypes={React.useMemo(() => {
 					return {
