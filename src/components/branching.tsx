@@ -28,7 +28,7 @@ import {createMessage, deleteMessageWithChildren, getParentMessages} from '@/dbm
 import {Message} from '@prisma/client'
 import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
 
-type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message> & {id: Message['id']}>
+type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message>>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
 
 const initialNodes: NodeWithData[] = []
@@ -157,9 +157,9 @@ export const BranchingComponent: React.FC = () => {
 				convId = (await createConversation(questionContent)).id
 			}
 
-			const hasParent = selectedNode?.data?.message?.parentId
-			if (hasParent) {
-				messageContext = (await getParentMessages(selectedNode?.data?.message?.id))
+			const hasParent = node?.data?.message?.parentId
+			if (hasParent && node?.data?.message?.id) {
+				messageContext = (await getParentMessages(node?.data?.message?.id))
 					.reverse()
 					.map<GptMessage>(({role, content}) => ({
 						role: role as GptMessage['role'],
@@ -167,11 +167,17 @@ export const BranchingComponent: React.FC = () => {
 					}))
 			}
 
-			messageContext.push({role: 'user', content: question})
+			messageContext.push({role: 'user', content: questionContent})
 
+			console.log({id: node})
 			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
-				createMessage(questionContent, 'user', convId, node?.data?.message?.id),
+				createMessage(
+					questionContent,
+					'user',
+					convId,
+					hasParent ? hasParent : node?.data?.message?.id,
+				),
 				fetchOpenAIResponse([{role: 'user', content: questionContent}]),
 			])
 
@@ -208,7 +214,9 @@ export const BranchingComponent: React.FC = () => {
 		try {
 			const nodeId = node.id
 
-			await deleteMessageWithChildren(node.data.message.id)
+			if (node?.data?.message?.id) {
+				await deleteMessageWithChildren(node?.data?.message?.id)
+			}
 
 			setNodes(currentNodes => {
 				// Set to keep track of nodes to delete, starting with the selected node
@@ -251,7 +259,14 @@ export const BranchingComponent: React.FC = () => {
 		const newNode: NodeWithData = {
 			id: newNodeID,
 			type: 'markdownNode',
-			data: {content: '', nodeType: 'question', message: {id: -9}},
+			data: {
+				content: '',
+				nodeType: 'question',
+				message: {
+					parentId: node?.data?.message?.id,
+					conversationId: node?.data?.message?.conversationId,
+				},
+			},
 			position: {x: node.xPos + 200, y: node.yPos + 100}, // Adjust position relative to the existing node
 		}
 		setNodes(nds => nds.concat(newNode))

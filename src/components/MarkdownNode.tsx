@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
 import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
 import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
@@ -29,6 +29,7 @@ export const MarkdownNode = <T,>({
 	const {id, data} = node
 	const [isHovered, setIsHovered] = useState(false)
 	const [isEditable, setIsEditable] = useState(false)
+	const [isTextarea, setIsTextarea] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false)
 
@@ -99,25 +100,30 @@ export const MarkdownNode = <T,>({
 			event.preventDefault()
 			console.log('Enter key pressed!')
 			submitQuestion(node, question)
+			setIsTextarea(true)
 			// Add your desired action here, such as submitting the content
 		}
 	}
 
+	// useEffect(() => {
+	// 	console.log({node})
+	// }, [node])
+
 	return (
 		<>
-			{console.log({data})}
 			<Box
 				sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 			>
+				{/* {console.log({data: data.content})} */}
 				<NodeResizeControl minWidth={200} minHeight={100}>
 					{/* <ResizeIcon /> */}
 				</NodeResizeControl>
 				<Box sx={sxStyles.markdownNodeContent}>
 					{isEditable ? (
 						<TextareaAutosize minRows={3} defaultValue={data.content} />
-					) : !data.content && data.nodeType === 'question' ? (
+					) : !data.content && !isTextarea && data.nodeType === 'question' ? (
 						<TextareaAutosize
 							onKeyDown={handleKeyDown}
 							onChange={e => setQuestion(e.target.value)}
@@ -125,7 +131,7 @@ export const MarkdownNode = <T,>({
 							defaultValue={data.content}
 						/>
 					) : (
-						<MarkdownViewer value={data.content} />
+						<MarkdownViewer value={data.content || question} />
 					)}
 				</Box>
 				{isHovered && (
