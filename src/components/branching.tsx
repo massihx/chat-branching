@@ -204,8 +204,8 @@ export const BranchingComponent: React.FC = () => {
 				edges={edges}
 				onNodesChange={onNodesChange}
 				onEdgesChange={onEdgesChange}
-				onNodeClick={onNodeClick}
-				onPaneClick={onClickCanvas}
+				// onNodeClick={onNodeClick}
+				// onPaneClick={onClickCanvas}
 				nodeTypes={React.useMemo(() => {
 					return {
 						markdownNode: props => (

@@ -1,8 +1,16 @@
 import React, {useState} from 'react'
-import {Handle, Position, Node as ReactFlowNode, NodeProps} from 'reactflow'
+import {
+	Handle,
+	Position,
+	Node as ReactFlowNode,
+	NodeProps,
+	NodeResizer,
+	NodeResizeControl,
+} from 'reactflow'
 import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
 import {MarkdownViewer} from './markdown/MDPreview'
-import {Box} from '@mui/material'
+import {Box, TextareaAutosize} from '@mui/material'
+import {truncate} from 'fs/promises'
 
 interface MarkdownNodeData<T> {
 	content: string
@@ -27,6 +35,13 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 			padding: '12px',
 			borderRadius: '8px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+			minWidth: 200,
+			// minHeight: 30,
+			'& textarea': {
+				width: '100%',
+				border: 'none',
+				resize: 'none',
+			},
 		},
 		nodeStyle:
 			data.nodeType === 'question'
@@ -65,28 +80,56 @@ export const MarkdownNode = <T,>({onEdit, onCopy, onDelete, ...node}: MarkdownNo
 		},
 	}
 	return (
-		<Box
-			sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
-		>
-			<Box sx={sxStyles.markdownNodeContent}>
-				{isEditable ? (
-					<textarea defaultValue={data.content} />
-				) : (
-					<MarkdownViewer value={data.content} />
-				)}
-			</Box>
-			{isHovered && (
-				<Box sx={sxStyles.markdownNodeActions}>
-					<FiEdit onClick={() => onEdit(node)} />
-					<FiPlus onClick={() => onCopy(node)} />
-					<FiTrash2 onClick={() => onDelete(node)} />
+		<>
+			<Box
+				sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
+				onMouseEnter={() => setIsHovered(true)}
+				onMouseLeave={() => setIsHovered(false)}
+			>
+				<NodeResizeControl minWidth={200} minHeight={100}>
+					<ResizeIcon />
+				</NodeResizeControl>
+				<Box sx={sxStyles.markdownNodeContent}>
+					{isEditable ? (
+						<TextareaAutosize minRows={3} defaultValue={data.content} />
+					) : (
+						<MarkdownViewer value={data.content} />
+					)}
 				</Box>
-			)}
-			<Handle type="source" position={Position.Top} />
-			<Handle type="target" position={Position.Bottom} />
-		</Box>
+				{isHovered && (
+					<Box sx={sxStyles.markdownNodeActions}>
+						<FiEdit onClick={() => setIsEditable(true)} />
+						<FiPlus onClick={() => onCopy(node)} />
+						<FiTrash2 onClick={() => onDelete(node)} />
+					</Box>
+				)}
+				<Handle type="source" position={Position.Top} />
+				<Handle type="target" position={Position.Bottom} />
+			</Box>
+		</>
+	)
+}
+
+function ResizeIcon() {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 24 24"
+			strokeWidth="2"
+			stroke="#ff0071"
+			fill="none"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			style={{position: 'absolute', right: 5, bottom: 5}}
+		>
+			<path stroke="none" d="M0 0h24v24H0z" fill="none" />
+			<polyline points="16 20 20 20 20 16" />
+			<line x1="14" y1="14" x2="20" y2="20" />
+			<polyline points="8 4 4 4 4 8" />
+			<line x1="4" y1="4" x2="10" y2="10" />
+		</svg>
 	)
 }
 
