@@ -92,7 +92,9 @@ export const BranchingComponent: React.FC = () => {
 		setSelectedNode(undefined)
 	}, [])
 
-	const calculateNodePosition = (existingNodeId?: NodeWithData): {x: number; y: number} => {
+	const calculateNodePosition = (
+		existingNodeId?: NodeProps<MarkdownNodeDataProps>,
+	): {x: number; y: number} => {
 		if (existingNodeId) {
 			const existingNode = nodes.find(node => node.id === existingNodeId.id)
 
@@ -123,7 +125,10 @@ export const BranchingComponent: React.FC = () => {
 		return newNode
 	}
 
-	const linkNodes = ({id: source}: NodeWithData, {id: target}: NodeWithData) => {
+	const linkNodes = (
+		{id: source}: NodeProps<MarkdownNodeDataProps>,
+		{id: target}: NodeWithData,
+	) => {
 		const newEdge: Edge = {
 			id: uuidv4(),
 			source,
@@ -138,15 +143,18 @@ export const BranchingComponent: React.FC = () => {
 		setEdges(eds => [...eds, newEdge])
 	}
 
-	const handleSubmit = async () => {
+	const handleSubmitQuestion = async (
+		node: NodeProps<MarkdownNodeDataProps>,
+		questionContent: string,
+	) => {
 		try {
-			const newPosition = calculateNodePosition(selectedNode)
-			let convId = selectedNode?.data?.message?.conversationId!
+			const newPosition = calculateNodePosition(node)
+			let convId = node?.data?.message?.conversationId!
 			let messageContext: GptMessage[] = []
 
 			// Create a new conversation if user clicked on the canvas
 			if (!convId) {
-				convId = (await createConversation(question)).id
+				convId = (await createConversation(questionContent)).id
 			}
 
 			const hasParent = selectedNode?.data?.message?.parentId
@@ -163,22 +171,22 @@ export const BranchingComponent: React.FC = () => {
 
 			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
-				createMessage(question, 'user', convId, selectedNode?.data?.message?.id),
-				fetchOpenAIResponse(messageContext),
+				createMessage(questionContent, 'user', convId, node?.data?.message?.id),
+				fetchOpenAIResponse([{role: 'user', content: questionContent}]),
 			])
 
 			// Create answer message on the backend
 			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
 
 			// Update the UI with the new nodes and link them
-			const questionNode = addNode(newQuestion, newPosition, true)
+			// const questionNode = addNode(newQuestion, newPosition, true)
 			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y}, false)
 
-			if (selectedNode) {
-				linkNodes(selectedNode, questionNode)
-			}
+			// if (node) {
+			// 	linkNodes(node, questionNode)
+			// }
 
-			linkNodes(questionNode, answerNode)
+			linkNodes(node, answerNode)
 		} catch (error: any) {
 			console.error(error.message, error)
 		}
@@ -237,6 +245,26 @@ export const BranchingComponent: React.FC = () => {
 		setNodes(nds => nds.map(n => (n.id === id ? {...n, data: {...n.data, content}} : n)))
 	}
 
+	const addQuestionNode = (node: NodeProps<MarkdownNodeDataProps>) => {
+		console.log({node})
+		const newNodeID = uuidv4()
+		const newNode: NodeWithData = {
+			id: newNodeID,
+			type: 'markdownNode',
+			data: {content: '', nodeType: 'question', message: {id: -9}},
+			position: {x: node.xPos + 200, y: node.yPos + 100}, // Adjust position relative to the existing node
+		}
+		setNodes(nds => nds.concat(newNode))
+		setEdges(eds =>
+			eds.concat({
+				id: uuidv4(),
+				source: node.id,
+				target: newNode.id,
+				type: 'smoothstep',
+			}),
+		)
+	}
+
 	return (
 		<Box sx={{flexGrow: 1}}>
 			<ReactFlow
@@ -251,8 +279,10 @@ export const BranchingComponent: React.FC = () => {
 								{...props}
 								data={props.data}
 								onEdit={handleEditNode}
-								onExtend={handleExtend}
+								// onExtend={handleExtend}
+								onAddQuestion={addQuestionNode}
 								onDelete={handleDeleteNode}
+								submitQuestion={handleSubmitQuestion}
 								// onContentChange={handleContentChange}
 							/>
 						),
@@ -281,7 +311,7 @@ export const BranchingComponent: React.FC = () => {
 				</DialogContent>
 				<DialogActions>
 					<Button onClick={handleClose}>Cancel</Button>
-					<Button onClick={handleSubmit}>Submit</Button>
+					{/* <Button onClick={handleSubmitQuestion}>Submit</Button> */}
 				</DialogActions>
 			</Dialog>
 		</Box>
