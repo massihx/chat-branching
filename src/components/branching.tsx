@@ -195,7 +195,6 @@ export const BranchingComponent: React.FC = () => {
 
 			messageContext.push({role: 'user', content: questionContent})
 
-			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
 				createMessage(
 					questionContent,
@@ -206,7 +205,6 @@ export const BranchingComponent: React.FC = () => {
 				fetchOpenAIResponse([{role: 'user', content: questionContent}]),
 			])
 
-			// Create answer message on the backend
 			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
 
 			updateNode(node.id, {
