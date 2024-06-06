@@ -34,6 +34,7 @@ import {
 import {Message} from '@prisma/client'
 import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
 import {FiPlus, FiTrash2} from 'react-icons/fi'
+import {CircularProgress} from '@mui/material'
 
 type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message>>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
@@ -44,6 +45,7 @@ const initialEdges: Edge[] = []
 export const BranchingComponent: React.FC = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+	const [isLoading, setIsLoading] = useState(false)
 	const [open, setOpen] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
@@ -173,10 +175,20 @@ export const BranchingComponent: React.FC = () => {
 		node: NodeProps<MarkdownNodeDataProps>,
 		questionContent: string,
 	) => {
+		setIsLoading(true)
 		try {
 			const newPosition = calculateNodePosition(node)
 			let convId = node?.data?.message?.conversationId!
 			let messageContext: GptMessage[] = []
+
+			updateNode(node.id, {
+				...node.data,
+				content: questionContent,
+				message: {
+					...node.data.message,
+					content: questionContent,
+				},
+			})
 
 			// Create a new conversation if user clicked on the canvas
 			if (!convId) {
@@ -207,25 +219,20 @@ export const BranchingComponent: React.FC = () => {
 
 			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
 
-			updateNode(node.id, {
-				...node.data,
-				content: questionContent,
-				message: {
-					...node.data.message,
-					content: questionContent,
-				},
-			})
 			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y}, false)
 
 			linkNodes(node, answerNode)
 		} catch (error: any) {
 			console.error(error.message, error)
+		} finally {
+			setIsLoading(false)
 		}
 
 		handleClose()
 	}
 
 	const handleNodeRefresh = async (node: NodeProps<MarkdownNodeDataProps>) => {
+		setIsLoading(true)
 		try {
 			if (node?.data?.message?.content) {
 				const [answer] = await Promise.all([
@@ -246,6 +253,8 @@ export const BranchingComponent: React.FC = () => {
 			}
 		} catch (error: any) {
 			console.error(error.message, error)
+		} finally {
+			setIsLoading(false)
 		}
 
 		handleClose()
@@ -378,53 +387,72 @@ export const BranchingComponent: React.FC = () => {
 	}
 
 	return (
-		<Box sx={{flexGrow: 1}}>
-			<ReactFlow
-				nodes={nodes}
-				edges={edges}
-				onNodesChange={onNodesChange}
-				onEdgesChange={onEdgesChange}
-				nodeTypes={React.useMemo(() => {
-					return {
-						markdownNode: props => (
-							<MarkdownNode
-								{...props}
-								data={props.data}
-								onEdit={handleEditNode}
-								onAddQuestion={addQuestionNode}
-								onDelete={handleDeleteNode}
-								submitQuestion={handleSubmitQuestion}
-								onRefresh={handleNodeRefresh}
-							/>
-						),
-					}
-				}, [])}
-				fitView
-			>
-				<MiniMap />
-				<Controls />
-				<Background />
-			</ReactFlow>
-			<Box sx={sxStyles.globalIcons}>
-				<Button onClick={() => addQuestionNode()} sx={sxStyles.btn}>
-					<FiPlus size={24} />
-				</Button>
-				<Button onClick={() => setOpen(true)} sx={sxStyles.btn}>
-					<FiTrash2 size={24} />
-				</Button>
+		<>
+			{isLoading && (
+				<Box
+					sx={{
+						margin: -1,
+						width: '100%',
+						height: '100%',
+						position: 'absolute',
+						display: 'flex',
+						justifyContent: 'center',
+						alignItems: 'center',
+						zIndex: 1000,
+						backgroundColor: 'rgba(0,0,0,0.1)',
+					}}
+				>
+					<CircularProgress />
+				</Box>
+			)}
+			<Box sx={{flexGrow: 1}}>
+				<ReactFlow
+					nodes={nodes}
+					edges={edges}
+					onNodesChange={onNodesChange}
+					onEdgesChange={onEdgesChange}
+					nodeTypes={React.useMemo(() => {
+						return {
+							markdownNode: props => (
+								<MarkdownNode
+									{...props}
+									data={props.data}
+									onEdit={handleEditNode}
+									onAddQuestion={addQuestionNode}
+									onDelete={handleDeleteNode}
+									submitQuestion={handleSubmitQuestion}
+									onRefresh={handleNodeRefresh}
+								/>
+							),
+						}
+					}, [])}
+					fitView
+				>
+					<MiniMap />
+					<Controls />
+					<Background />
+				</ReactFlow>
+				<Box sx={sxStyles.globalIcons}>
+					<Button onClick={() => addQuestionNode()} sx={sxStyles.btn}>
+						<FiPlus size={24} />
+					</Button>
+					<Button onClick={() => setOpen(true)} sx={sxStyles.btn}>
+						<FiTrash2 size={24} />
+					</Button>
+				</Box>
+				<Dialog open={open} onClose={handleClose}>
+					<DialogTitle>Delete record</DialogTitle>
+					<DialogContent>
+						<Typography variant="body1" paragraph>
+							Are you sure you want to delete all nodes?
+						</Typography>
+					</DialogContent>
+					<DialogActions>
+						<Button onClick={handleClose}>Cancel</Button>
+						<Button onClick={deleteAllNodes}>Delete</Button>
+					</DialogActions>
+				</Dialog>
 			</Box>
-			<Dialog open={open} onClose={handleClose}>
-				<DialogTitle>Delete record</DialogTitle>
-				<DialogContent>
-					<Typography variant="body1" paragraph>
-						Are you sure you want to delete all nodes?
-					</Typography>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={handleClose}>Cancel</Button>
-					<Button onClick={deleteAllNodes}>Delete</Button>
-				</DialogActions>
-			</Dialog>
-		</Box>
+		</>
 	)
 }
