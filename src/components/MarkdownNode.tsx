@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
 import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
-import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
+import {Button, Checkbox, Dialog, DialogActions, DialogTitle} from '@mui/material'
 
 import {MarkdownViewer} from './markdown/MDPreview'
 import {Box, TextareaAutosize} from '@mui/material'
@@ -10,6 +10,7 @@ export interface MarkdownNodeData<T> {
 	content: string
 	message: T
 	nodeType: 'answer' | 'question'
+	isSelected: boolean
 }
 
 export interface MarkdownNodeProps<T> extends NodeProps {
@@ -18,6 +19,8 @@ export interface MarkdownNodeProps<T> extends NodeProps {
 	onAddQuestion: (node: NodeProps<MarkdownNodeData<T>>) => void
 	submitQuestion: (node: NodeProps<MarkdownNodeData<T>>, questionContent: string) => void
 	onRefresh: (node: NodeProps<MarkdownNodeData<T>>) => void
+	isSelectable: boolean
+	onCheckboxChange: (id: string, isSelected: boolean) => void
 }
 
 export const MarkdownNode = <T,>({
@@ -26,6 +29,8 @@ export const MarkdownNode = <T,>({
 	onAddQuestion,
 	submitQuestion,
 	onRefresh,
+	isSelectable,
+	onCheckboxChange,
 	...node
 }: MarkdownNodeProps<T>) => {
 	const {id, data} = node
@@ -53,6 +58,8 @@ export const MarkdownNode = <T,>({
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
 			minWidth: 200,
 			maxWidth: 800,
+			display: 'flex',
+			alignItems: 'start',
 			'& textarea': {
 				width: '100%',
 				border: 'none',
@@ -80,7 +87,7 @@ export const MarkdownNode = <T,>({
 					},
 			  },
 		markdownNodeContent: {
-			padding: '5px',
+			padding: '7px',
 		},
 		markdownNodeActions: {
 			position: 'absolute',
@@ -108,9 +115,9 @@ export const MarkdownNode = <T,>({
 		}
 	}
 
-	// useEffect(() => {
-	// 	console.log({node})
-	// }, [node])
+	const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		onCheckboxChange(id, event.target.checked)
+	}
 
 	return (
 		<>
@@ -119,10 +126,10 @@ export const MarkdownNode = <T,>({
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 			>
-				{/* {console.log({data: data.content})} */}
-				<NodeResizeControl minWidth={200} minHeight={100}>
-					{/* <ResizeIcon /> */}
-				</NodeResizeControl>
+				{data?.isSelectable && (
+					<Checkbox checked={data.isSelected} onChange={handleCheckboxChange} />
+				)}
+				<NodeResizeControl minWidth={200} minHeight={100}></NodeResizeControl>
 				<Box sx={sxStyles.markdownNodeContent}>
 					{isEditable ? (
 						<TextareaAutosize minRows={3} defaultValue={data.content} />
