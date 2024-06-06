@@ -341,6 +341,44 @@ export const BranchingComponent: React.FC = () => {
 		}
 	}
 
+	const sxStyles = {
+		globalIcons: {
+			width: '100vw',
+			position: 'absolute',
+			bottom: 10,
+			display: 'flex',
+			justifyContent: 'center',
+		},
+		btn: {
+			width: '50px',
+			color: '#000000',
+			margin: '10px',
+			backgroundColor: 'rgba(0,0,0,0.1)',
+			'&:hover': {
+				backgroundColor: 'rgba(0,0,0,0.2)',
+			},
+		},
+	}
+
+	const deleteAllNodes = async () => {
+		try {
+			// Extract all node IDs that need to be deleted from the database
+			const nodeIds = nodes
+				.map(node => node.data.message.id)
+				.filter(id => id !== undefined) as number[]
+
+			// Delete nodes from the database
+			await Promise.all(nodeIds.map(id => deleteMessageWithChildren(id)))
+
+			// Clear nodes and edges from the state
+			setNodes([])
+			setEdges([])
+			setOpen(false)
+		} catch (error: any) {
+			console.error('Error deleting nodes:', error.message, error)
+		}
+	}
+
 	return (
 		<Box sx={{flexGrow: 1}}>
 			<ReactFlow
@@ -369,6 +407,26 @@ export const BranchingComponent: React.FC = () => {
 				<Controls />
 				<Background />
 			</ReactFlow>
+			<Box sx={sxStyles.globalIcons}>
+				<Button onClick={() => addQuestionNode()} sx={sxStyles.btn}>
+					<FiPlus size={24} />
+				</Button>
+				<Button onClick={() => setOpen(true)} sx={sxStyles.btn}>
+					<FiTrash2 size={24} />
+				</Button>
+			</Box>
+			<Dialog open={open} onClose={handleClose}>
+				<DialogTitle>Delete record</DialogTitle>
+				<DialogContent>
+					<Typography variant="body1" paragraph>
+						Are you sure you want to delete all nodes?
+					</Typography>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={handleClose}>Cancel</Button>
+					<Button onClick={deleteAllNodes}>Delete</Button>
+				</DialogActions>
+			</Dialog>
 		</Box>
 	)
 }
