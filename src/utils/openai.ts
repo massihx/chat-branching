@@ -1,6 +1,9 @@
 'use server'
-// export const fetchOpenAIResponse = async (message: string) => {
-export const fetchOpenAIResponse = async (messages: {role: string; content: string}[]) => {
+
+type GPT_ROLE = 'user' | 'assistant'
+export type GptMessage = {role: GPT_ROLE; content: string}
+
+export const fetchOpenAIResponse = async (messages: GptMessage[]) => {
 	const openaiApiKey = process.env.OPENAI_API_KEY
 
 	if (!openaiApiKey) {
@@ -15,7 +18,6 @@ export const fetchOpenAIResponse = async (messages: {role: string; content: stri
 		},
 		body: JSON.stringify({
 			model: 'gpt-4o',
-			// messages: [{role: 'user', content: message}],
 			messages: messages,
 		}),
 	})
