@@ -17,6 +17,7 @@ export interface MarkdownNodeProps<T> extends NodeProps {
 	onDelete: (node: NodeProps<MarkdownNodeData<T>>) => void
 	onAddQuestion: (node: NodeProps<MarkdownNodeData<T>>) => void
 	submitQuestion: (node: NodeProps<MarkdownNodeData<T>>, questionContent: string) => void
+	onRefresh: (node: NodeProps<MarkdownNodeData<T>>) => void
 }
 
 export const MarkdownNode = <T,>({
@@ -24,6 +25,7 @@ export const MarkdownNode = <T,>({
 	onDelete,
 	onAddQuestion,
 	submitQuestion,
+	onRefresh,
 	...node
 }: MarkdownNodeProps<T>) => {
 	const {id, data} = node
@@ -50,6 +52,7 @@ export const MarkdownNode = <T,>({
 			borderRadius: '8px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
 			minWidth: 200,
+			maxWidth: 800,
 			'& textarea': {
 				width: '100%',
 				border: 'none',
@@ -123,7 +126,7 @@ export const MarkdownNode = <T,>({
 				<Box sx={sxStyles.markdownNodeContent}>
 					{isEditable ? (
 						<TextareaAutosize minRows={3} defaultValue={data.content} />
-					) : !data.content && !isTextarea && data.nodeType === 'question' ? (
+					) : !data.content && data.nodeType === 'question' ? (
 						<TextareaAutosize
 							onKeyDown={handleKeyDown}
 							onChange={e => setQuestion(e.target.value)}
@@ -140,7 +143,7 @@ export const MarkdownNode = <T,>({
 						<FiPlus onClick={() => onAddQuestion(node)} />
 						<FiTrash2 onClick={() => onDelete(node)} />
 						{data.nodeType !== 'question' && (
-							<FiRefreshCcw onClick={() => onDelete(node)} />
+							<FiRefreshCcw onClick={() => onRefresh(node)} />
 						)}
 					</Box>
 				)}

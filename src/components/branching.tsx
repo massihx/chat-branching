@@ -20,13 +20,20 @@ import {
 	DialogContent,
 	DialogTitle,
 	TextField,
+	Typography,
 } from '@mui/material'
 import {fetchOpenAIResponse, GptMessage} from '@/utils/openai'
 import {v4 as uuidv4} from 'uuid'
 import {createConversation, getAllConversations} from '@/dbm/conversation.dbm'
-import {createMessage, deleteMessageWithChildren, getParentMessages} from '@/dbm/message.dbm'
+import {
+	createMessage,
+	deleteMessageWithChildren,
+	getParentMessages,
+	updateMessage,
+} from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
 import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
+import {FiPlus, FiTrash2} from 'react-icons/fi'
 
 type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message>>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
@@ -125,6 +132,25 @@ export const BranchingComponent: React.FC = () => {
 		return newNode
 	}
 
+	const updateNode = (
+		id: string,
+		newData: Partial<MarkdownNodeDataProps>,
+		newPosition?: {x: number; y: number},
+	): void => {
+		console.log({id, newData})
+		setNodes(nds =>
+			nds.map(node =>
+				node.id === id
+					? {
+							...node,
+							data: {...node.data, ...newData},
+							position: newPosition ? newPosition : node.position,
+					  }
+					: node,
+			),
+		)
+	}
+
 	const linkNodes = (
 		{id: source}: NodeProps<MarkdownNodeDataProps>,
 		{id: target}: NodeWithData,
@@ -169,7 +195,6 @@ export const BranchingComponent: React.FC = () => {
 
 			messageContext.push({role: 'user', content: questionContent})
 
-			console.log({id: node})
 			// Create question message on the backend and get the answer from OpenAI
 			const [newQuestion, answer] = await Promise.all([
 				createMessage(
@@ -184,15 +209,43 @@ export const BranchingComponent: React.FC = () => {
 			// Create answer message on the backend
 			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
 
-			// Update the UI with the new nodes and link them
-			// const questionNode = addNode(newQuestion, newPosition, true)
+			updateNode(node.id, {
+				...node.data,
+				content: questionContent,
+				message: {
+					...node.data.message,
+					content: questionContent,
+				},
+			})
 			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y}, false)
 
-			// if (node) {
-			// 	linkNodes(node, questionNode)
-			// }
-
 			linkNodes(node, answerNode)
+		} catch (error: any) {
+			console.error(error.message, error)
+		}
+
+		handleClose()
+	}
+
+	const handleNodeRefresh = async (node: NodeProps<MarkdownNodeDataProps>) => {
+		try {
+			if (node?.data?.message?.content) {
+				const [answer] = await Promise.all([
+					fetchOpenAIResponse([{role: 'user', content: node?.data?.message?.content}]),
+				])
+
+				if (node?.data?.message?.id) {
+					updateMessage(node?.data?.message?.id, answer, 'assistant')
+				}
+				updateNode(node.id, {
+					...node.data,
+					content: answer,
+					message: {
+						...node.data.message,
+						content: answer,
+					},
+				})
+			}
 		} catch (error: any) {
 			console.error(error.message, error)
 		}
@@ -253,31 +306,39 @@ export const BranchingComponent: React.FC = () => {
 		setNodes(nds => nds.map(n => (n.id === id ? {...n, data: {...n.data, content}} : n)))
 	}
 
-	const addQuestionNode = (node: NodeProps<MarkdownNodeDataProps>) => {
-		console.log({node})
+	const addQuestionNode = (node?: NodeProps<MarkdownNodeDataProps>) => {
 		const newNodeID = uuidv4()
+		const position = node
+			? {x: node.xPos + 200, y: node.yPos + 100}
+			: {x: Math.random() * 400, y: Math.random() * 400} // Adjust position if no node is passed
+
 		const newNode: NodeWithData = {
 			id: newNodeID,
 			type: 'markdownNode',
 			data: {
 				content: '',
 				nodeType: 'question',
-				message: {
-					parentId: node?.data?.message?.id,
-					conversationId: node?.data?.message?.conversationId,
-				},
+				message: node
+					? {
+							parentId: node?.data?.message?.id,
+							conversationId: node?.data?.message?.conversationId,
+					  }
+					: {parentId: undefined, conversationId: undefined}, // Adjust data if no node is passed
 			},
-			position: {x: node.xPos + 200, y: node.yPos + 100}, // Adjust position relative to the existing node
+			position,
 		}
+
 		setNodes(nds => nds.concat(newNode))
-		setEdges(eds =>
-			eds.concat({
-				id: uuidv4(),
-				source: node.id,
-				target: newNode.id,
-				type: 'smoothstep',
-			}),
-		)
+		if (node) {
+			setEdges(eds =>
+				eds.concat({
+					id: uuidv4(),
+					source: node.id,
+					target: newNode.id,
+					type: 'smoothstep',
+				}),
+			)
+		}
 	}
 
 	return (
@@ -294,11 +355,10 @@ export const BranchingComponent: React.FC = () => {
 								{...props}
 								data={props.data}
 								onEdit={handleEditNode}
-								// onExtend={handleExtend}
 								onAddQuestion={addQuestionNode}
 								onDelete={handleDeleteNode}
 								submitQuestion={handleSubmitQuestion}
-								// onContentChange={handleContentChange}
+								onRefresh={handleNodeRefresh}
 							/>
 						),
 					}
@@ -309,26 +369,6 @@ export const BranchingComponent: React.FC = () => {
 				<Controls />
 				<Background />
 			</ReactFlow>
-			<Dialog open={open} onClose={handleClose}>
-				<DialogTitle>
-					{selectedNode ? 'Type a question' : 'Start a new conversation'}
-				</DialogTitle>
-				<DialogContent>
-					<TextField
-						autoFocus
-						margin="dense"
-						label="Enter your question"
-						type="text"
-						fullWidth
-						value={question}
-						onChange={e => setQuestion(e.target.value)}
-					/>
-				</DialogContent>
-				<DialogActions>
-					<Button onClick={handleClose}>Cancel</Button>
-					{/* <Button onClick={handleSubmitQuestion}>Submit</Button> */}
-				</DialogActions>
-			</Dialog>
 		</Box>
 	)
 }
