@@ -215,7 +215,6 @@ export const BranchingComponent: React.FC = () => {
 								onEdit={handleEdit}
 								onCopy={handleCopy}
 								onDelete={handleDelete}
-								// onContentChange={handleContentChange}
 							/>
 						),
 					}
