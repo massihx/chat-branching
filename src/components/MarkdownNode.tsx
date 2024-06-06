@@ -1,9 +1,10 @@
-import React, {useState} from 'react'
-import {Handle, Position, NodeProps} from 'reactflow'
-import {FiEdit, FiPlus, FiTrash2} from 'react-icons/fi'
+import React, {useEffect, useState} from 'react'
+import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
+import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
 import {Button, Dialog, DialogActions, DialogTitle} from '@mui/material'
+
 import {MarkdownViewer} from './markdown/MDPreview'
-import {Box} from '@mui/material'
+import {Box, TextareaAutosize} from '@mui/material'
 
 export interface MarkdownNodeData<T> {
 	content: string
@@ -13,14 +14,25 @@ export interface MarkdownNodeData<T> {
 
 export interface MarkdownNodeProps<T> extends NodeProps {
 	onEdit: (node: NodeProps<MarkdownNodeData<T>>) => void
-	onExtend: (node: NodeProps<MarkdownNodeData<T>>) => void
 	onDelete: (node: NodeProps<MarkdownNodeData<T>>) => void
+	onAddQuestion: (node: NodeProps<MarkdownNodeData<T>>) => void
+	submitQuestion: (node: NodeProps<MarkdownNodeData<T>>, questionContent: string) => void
+	onRefresh: (node: NodeProps<MarkdownNodeData<T>>) => void
 }
 
-export const MarkdownNode = <T,>({onEdit, onExtend, onDelete, ...node}: MarkdownNodeProps<T>) => {
+export const MarkdownNode = <T,>({
+	onEdit,
+	onDelete,
+	onAddQuestion,
+	submitQuestion,
+	onRefresh,
+	...node
+}: MarkdownNodeProps<T>) => {
 	const {id, data} = node
 	const [isHovered, setIsHovered] = useState(false)
 	const [isEditable, setIsEditable] = useState(false)
+	const [isTextarea, setIsTextarea] = useState(false)
+	const [question, setQuestion] = useState('')
 	const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false)
 
 	const isQuestionNode = data.nodeType === 'question'
@@ -39,6 +51,16 @@ export const MarkdownNode = <T,>({onEdit, onExtend, onDelete, ...node}: Markdown
 			padding: '12px',
 			borderRadius: '8px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+			minWidth: 200,
+			maxWidth: 800,
+			'& textarea': {
+				width: '100%',
+				border: 'none',
+				resize: 'none',
+				outline: 'none',
+				minHeight: '30px',
+				fontSize: '16px',
+			},
 		},
 		nodeStyle: isQuestionNode
 			? {
@@ -76,50 +98,73 @@ export const MarkdownNode = <T,>({onEdit, onExtend, onDelete, ...node}: Markdown
 		},
 	}
 
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault()
+			console.log('Enter key pressed!')
+			submitQuestion(node, question)
+			setIsTextarea(true)
+			// Add your desired action here, such as submitting the content
+		}
+	}
+
+	// useEffect(() => {
+	// 	console.log({node})
+	// }, [node])
+
 	return (
-		<Box
-			sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
-		>
-			<Box sx={sxStyles.markdownNodeContent}>
-				{isEditable ? (
-					<textarea defaultValue={data.content} />
-				) : (
-					<MarkdownViewer value={data.content} />
-				)}
-			</Box>
-			{isHovered && (
-				<Box sx={sxStyles.markdownNodeActions}>
-					{isQuestionNode ? (
-						<>
-							<FiTrash2 onClick={showConfirmDeleteDialog} />
-						</>
+		<>
+			<Box
+				sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
+				onMouseEnter={() => setIsHovered(true)}
+				onMouseLeave={() => setIsHovered(false)}
+			>
+				{/* {console.log({data: data.content})} */}
+				<NodeResizeControl minWidth={200} minHeight={100}>
+					{/* <ResizeIcon /> */}
+				</NodeResizeControl>
+				<Box sx={sxStyles.markdownNodeContent}>
+					{isEditable ? (
+						<TextareaAutosize minRows={3} defaultValue={data.content} />
+					) : !data.content && data.nodeType === 'question' ? (
+						<TextareaAutosize
+							onKeyDown={handleKeyDown}
+							onChange={e => setQuestion(e.target.value)}
+							minRows={1}
+							defaultValue={data.content}
+						/>
 					) : (
-						<>
-							<FiEdit onClick={() => onEdit(node)} />
-							<FiPlus onClick={() => onExtend(node)} />
-						</>
+						<MarkdownViewer value={data.content || question} />
 					)}
 				</Box>
-			)}
-			<Handle type="source" position={Position.Top} />
-			<Handle type="target" position={Position.Bottom} />
-			<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
-				<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
-				<DialogActions>
-					<Button onClick={closeConfirmDeleteDialog}>No</Button>
-					<Button
-						onClick={() => {
-							onDelete(node)
-							closeConfirmDeleteDialog()
-						}}
-					>
-						Yes
-					</Button>
-				</DialogActions>
-			</Dialog>
-		</Box>
+				{isHovered && (
+					<Box sx={sxStyles.markdownNodeActions}>
+						<FiEdit onClick={() => setIsEditable(true)} />
+						<FiPlus onClick={() => onAddQuestion(node)} />
+						<FiTrash2 onClick={() => onDelete(node)} />
+						{data.nodeType !== 'question' && (
+							<FiRefreshCcw onClick={() => onRefresh(node)} />
+						)}
+					</Box>
+				)}
+				<Handle type="source" position={Position.Top} />
+				<Handle type="target" position={Position.Bottom} />
+				<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
+					<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
+					<DialogActions>
+						<Button onClick={closeConfirmDeleteDialog}>No</Button>
+						<Button
+							onClick={() => {
+								onDelete(node)
+								closeConfirmDeleteDialog()
+							}}
+						>
+							Yes
+						</Button>
+					</DialogActions>
+				</Dialog>
+			</Box>
+		</>
 	)
 }
 
