@@ -1,10 +1,10 @@
 import React, {useEffect, useState} from 'react'
 import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
 import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
-import {Button, Checkbox, Dialog, DialogActions, DialogTitle} from '@mui/material'
+import {Button, TextareaAutosize, Checkbox, Dialog, DialogActions, DialogTitle} from '@mui/material'
 
 import {MarkdownViewer} from './markdown/MDPreview'
-import {Box, TextareaAutosize} from '@mui/material'
+import {Box} from '@mui/material'
 
 export interface MarkdownNodeData<T> {
 	content: string
@@ -60,7 +60,8 @@ export const MarkdownNode = <T,>({
 			width: '100%',
 			maxWidth: '800px',
 			'& textarea': {
-				width: '100%',
+				width: '99%',
+				height: '100%',
 				border: 'none',
 				resize: 'none',
 				outline: 'none',
@@ -102,6 +103,24 @@ export const MarkdownNode = <T,>({
 				cursor: 'pointer',
 			},
 		},
+		contentContainer: {
+			overflow: 'auto',
+			width: '100%',
+			height: '100%',
+			'&::-webkit-scrollbar': {
+				width: '6px', // Adjust the width of the scrollbar
+			},
+			'&::-webkit-scrollbar-thumb': {
+				backgroundColor: '#888', // Change the color of the scrollbar thumb
+				borderRadius: '10px', // Round the corners of the scrollbar thumb
+			},
+			'&::-webkit-scrollbar-thumb:hover': {
+				backgroundColor: '#555', // Change the color on hover
+			},
+			'&::-webkit-scrollbar-track': {
+				backgroundColor: '#f1f1f1', // Change the background color of the scrollbar track
+			},
+		},
 	}
 
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -125,37 +144,38 @@ export const MarkdownNode = <T,>({
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 			>
-				<NodeResizeControl minWidth={20} minHeight={20}>
-				</NodeResizeControl>
+				<NodeResizeControl minWidth={20} minHeight={20}></NodeResizeControl>
 				{data?.isSelectable && (
 					<Checkbox checked={data.isSelected} onChange={handleCheckboxChange} />
 				)}
-				<Box sx={sxStyles.markdownNodeContent}>
-					{isEditable ? (
-						<TextareaAutosize minRows={3} defaultValue={data.content} />
-					) : !data.content && data.nodeType === 'question' ? (
-						<TextareaAutosize
-							onKeyDown={handleKeyDown}
-							onChange={e => setQuestion(e.target.value)}
-							minRows={1}
-							defaultValue={data.content}
-						/>
-					) : (
-						<MarkdownViewer value={data.content || question} />
-					)}
-				</Box>
-				{isHovered && (
-					<Box sx={sxStyles.markdownNodeActions}>
-						<FiEdit onClick={() => setIsEditable(true)} />
-						<FiPlus onClick={() => onAddQuestion(node)} />
-						<FiTrash2 onClick={() => onDelete(node)} />
-						{data.nodeType !== 'question' && (
-							<FiRefreshCcw onClick={() => onRefresh(node)} />
+				<Box sx={sxStyles.contentContainer}>
+					<Box sx={sxStyles.markdownNodeContent}>
+						{isEditable ? (
+							<TextareaAutosize minRows={3} defaultValue={data.content} />
+						) : !data.content && data.nodeType === 'question' ? (
+							<TextareaAutosize
+								onKeyDown={handleKeyDown}
+								onChange={e => setQuestion(e.target.value)}
+								minRows={1}
+								defaultValue={data.content}
+							/>
+						) : (
+							<MarkdownViewer value={data.content || question} />
 						)}
 					</Box>
-				)}
-				<Handle type="source" position={Position.Top} />
-				<Handle type="target" position={Position.Bottom} />
+					{isHovered && (
+						<Box sx={sxStyles.markdownNodeActions}>
+							<FiEdit onClick={() => setIsEditable(true)} />
+							<FiPlus onClick={() => onAddQuestion(node)} />
+							<FiTrash2 onClick={() => onDelete(node)} />
+							{data.nodeType !== 'question' && (
+								<FiRefreshCcw onClick={() => onRefresh(node)} />
+							)}
+						</Box>
+					)}
+					<Handle type="source" position={Position.Top} />
+					<Handle type="target" position={Position.Bottom} />
+				</Box>
 				<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
 					<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
 					<DialogActions>
