@@ -56,10 +56,9 @@ export const MarkdownNode = <T,>({
 			padding: '12px',
 			borderRadius: '8px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-			minWidth: 200,
-			maxWidth: 800,
-			display: 'flex',
-			alignItems: 'start',
+			height: '100%',
+			width: '100%',
+			maxWidth: '800px',
 			'& textarea': {
 				width: '100%',
 				border: 'none',
@@ -126,10 +125,11 @@ export const MarkdownNode = <T,>({
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 			>
+				<NodeResizeControl minWidth={20} minHeight={20}>
+				</NodeResizeControl>
 				{data?.isSelectable && (
 					<Checkbox checked={data.isSelected} onChange={handleCheckboxChange} />
 				)}
-				<NodeResizeControl minWidth={200} minHeight={100}></NodeResizeControl>
 				<Box sx={sxStyles.markdownNodeContent}>
 					{isEditable ? (
 						<TextareaAutosize minRows={3} defaultValue={data.content} />
