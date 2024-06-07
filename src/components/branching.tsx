@@ -19,6 +19,7 @@ import {
 	DialogActions,
 	DialogContent,
 	DialogTitle,
+	Snackbar,
 	TextField,
 	Typography,
 } from '@mui/material'
@@ -33,8 +34,9 @@ import {
 } from '@/dbm/message.dbm'
 import {Message} from '@prisma/client'
 import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
-import {FiPlus, FiTrash2} from 'react-icons/fi'
+import {FiCopy, FiPlus, FiTrash2} from 'react-icons/fi'
 import {CircularProgress} from '@mui/material'
+import {BiSelectMultiple} from 'react-icons/bi'
 
 type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message>>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
@@ -46,7 +48,9 @@ export const BranchingComponent: React.FC = () => {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 	const [isLoading, setIsLoading] = useState(false)
+	const [openSnackBar, setOpenSnackBar] = useState(false)
 	const [open, setOpen] = useState(false)
+	const [isSelectable, setIsSelectable] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
 
@@ -63,7 +67,7 @@ export const BranchingComponent: React.FC = () => {
 					const messageNode: NodeWithData = {
 						id: `msg-${message.id}`,
 						type: 'markdownNode',
-						data: {message, content: message.content, nodeType},
+						data: {message, content: message.content, nodeType, isSelected: false},
 						position: {x: 100 * index, y: 100 + 50 * newNodes.length},
 					}
 					newNodes.push(messageNode)
@@ -90,6 +94,38 @@ export const BranchingComponent: React.FC = () => {
 
 		fetchData()
 	}, [setEdges, setNodes])
+
+	useEffect(() => {
+		setNodes(nds =>
+			nds.map(node => ({
+				...node,
+				data: {
+					...node.data,
+					isSelectable,
+				},
+			})),
+		)
+	}, [isSelectable])
+
+	const handleCheckboxChange = (id: string, isSelected: boolean) => {
+		setNodes(nds =>
+			nds.map(node =>
+				node.id === id
+					? {
+							...node,
+							data: {
+								...node.data,
+								isSelected,
+							},
+					  }
+					: node,
+			),
+		)
+	}
+
+	const handleCloseSnackbar = () => {
+		setOpenSnackBar(false)
+	}
 
 	const onClickCanvas = useCallback(() => {
 		setOpen(true)
@@ -127,6 +163,7 @@ export const BranchingComponent: React.FC = () => {
 				message: data,
 				content: data.content,
 				nodeType: isQuestion ? 'question' : 'answer',
+				isSelected: false,
 			},
 			position,
 		}
@@ -331,6 +368,7 @@ export const BranchingComponent: React.FC = () => {
 							conversationId: node?.data?.message?.conversationId,
 					  }
 					: {parentId: undefined, conversationId: undefined}, // Adjust data if no node is passed
+				isSelected: false,
 			},
 			position,
 		}
@@ -386,6 +424,30 @@ export const BranchingComponent: React.FC = () => {
 		}
 	}
 
+	const createStringFromSelectedNodes = () => {
+		const selectedNodesContent = nodes
+			.filter(node => node.data.isSelected)
+			.map(node => {
+				const nodeType = node.data.nodeType === 'question' ? 'question' : 'answer'
+				return `${nodeType}: ${node.data.content}`
+			})
+			.join('\n')
+
+		navigator.clipboard
+			.writeText(selectedNodesContent)
+			.then(() => {
+				console.log('Content copied to clipboard')
+			})
+			.catch(err => {
+				console.error('Failed to copy: ', err)
+			})
+		setOpenSnackBar(true)
+		setTimeout(() => {
+			setOpenSnackBar(false)
+		}, 3000)
+		setIsSelectable(!isSelectable)
+	}
+
 	return (
 		<>
 			{isLoading && (
@@ -422,6 +484,8 @@ export const BranchingComponent: React.FC = () => {
 									onDelete={handleDeleteNode}
 									submitQuestion={handleSubmitQuestion}
 									onRefresh={handleNodeRefresh}
+									isSelectable={isSelectable}
+									onCheckboxChange={handleCheckboxChange} // Add this line
 								/>
 							),
 						}
@@ -439,6 +503,18 @@ export const BranchingComponent: React.FC = () => {
 					<Button onClick={() => setOpen(true)} sx={sxStyles.btn}>
 						<FiTrash2 size={24} />
 					</Button>
+					{isSelectable ? (
+						<Button onClick={createStringFromSelectedNodes} sx={sxStyles.btn}>
+							<FiCopy size={24} />
+						</Button>
+					) : (
+						<Button sx={sxStyles.btn}>
+							<BiSelectMultiple
+								onClick={() => setIsSelectable(!isSelectable)}
+								size={24}
+							/>
+						</Button>
+					)}
 				</Box>
 				<Dialog open={open} onClose={handleClose}>
 					<DialogTitle>Delete record</DialogTitle>
@@ -452,6 +528,13 @@ export const BranchingComponent: React.FC = () => {
 						<Button onClick={deleteAllNodes}>Delete</Button>
 					</DialogActions>
 				</Dialog>
+				<Snackbar
+					anchorOrigin={{vertical: 'top', horizontal: 'center'}}
+					open={openSnackBar}
+					onClose={handleCloseSnackbar}
+					message="Text copied to clipboard"
+					key={'top' + 'center'}
+				/>
 			</Box>
 		</>
 	)
