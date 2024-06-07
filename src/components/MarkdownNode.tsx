@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
 import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
-import {Button, Dialog, DialogActions, DialogTitle, TextareaAutosize} from '@mui/material'
+import {Button, TextareaAutosize, Checkbox, Dialog, DialogActions, DialogTitle} from '@mui/material'
 
 import {MarkdownViewer} from './markdown/MDPreview'
 import {Box} from '@mui/material'
@@ -10,6 +10,7 @@ export interface MarkdownNodeData<T> {
 	content: string
 	message: T
 	nodeType: 'answer' | 'question'
+	isSelected: boolean
 }
 
 export interface MarkdownNodeProps<T> extends NodeProps {
@@ -18,6 +19,8 @@ export interface MarkdownNodeProps<T> extends NodeProps {
 	onAddQuestion: (node: NodeProps<MarkdownNodeData<T>>) => void
 	submitQuestion: (node: NodeProps<MarkdownNodeData<T>>, questionContent: string) => void
 	onRefresh: (node: NodeProps<MarkdownNodeData<T>>) => void
+	isSelectable: boolean
+	onCheckboxChange: (id: string, isSelected: boolean) => void
 }
 
 export const MarkdownNode = <T,>({
@@ -26,6 +29,8 @@ export const MarkdownNode = <T,>({
 	onAddQuestion,
 	submitQuestion,
 	onRefresh,
+	isSelectable,
+	onCheckboxChange,
 	...node
 }: MarkdownNodeProps<T>) => {
 	const {id, data} = node
@@ -82,7 +87,7 @@ export const MarkdownNode = <T,>({
 					},
 			  },
 		markdownNodeContent: {
-			padding: '5px',
+			padding: '7px',
 		},
 		markdownNodeActions: {
 			position: 'absolute',
@@ -128,6 +133,10 @@ export const MarkdownNode = <T,>({
 		}
 	}
 
+	const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		onCheckboxChange(id, event.target.checked)
+	}
+
 	return (
 		<>
 			<Box
@@ -136,6 +145,9 @@ export const MarkdownNode = <T,>({
 				onMouseLeave={() => setIsHovered(false)}
 			>
 				<NodeResizeControl minWidth={20} minHeight={20}></NodeResizeControl>
+				{data?.isSelectable && (
+					<Checkbox checked={data.isSelected} onChange={handleCheckboxChange} />
+				)}
 				<Box sx={sxStyles.contentContainer}>
 					<Box sx={sxStyles.markdownNodeContent}>
 						{isEditable ? (
@@ -180,29 +192,6 @@ export const MarkdownNode = <T,>({
 				</Dialog>
 			</Box>
 		</>
-	)
-}
-
-function ResizeIcon() {
-	return (
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			width="20"
-			height="20"
-			viewBox="0 0 24 24"
-			strokeWidth="2"
-			stroke="#ff0071"
-			fill="none"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			style={{position: 'absolute', right: 5, bottom: 5}}
-		>
-			<path stroke="none" d="M0 0h24v24H0z" fill="none" />
-			<polyline points="16 20 20 20 20 16" />
-			<line x1="14" y1="14" x2="20" y2="20" />
-			<polyline points="8 4 4 4 4 8" />
-			<line x1="4" y1="4" x2="10" y2="10" />
-		</svg>
 	)
 }
 
