@@ -1,0 +1,35 @@
+all tasks
+    domains and usecase
+        schema, crud, UI
+    data handling
+        uploading data via cloud storage providers
+        running OCR and data processing
+        data chunking
+        data embedding
+        saving in vector db
+    pilot managements
+        pilots for each usecase
+            schema, crud, UI
+        auto evaluation for each pilot
+    pilots comparison
+        side by side comparison
+    chatbot
+        multimodal answers
+        In-depth explanations during answer generation
+        Step-by-step breakdown of how the answer was generated
+        Word-by-word Streaming Answers
+        References for Answers
+        Feedback Submission per Pilot, Answer, Answer Section
+    DevOps
+        Microservices
+            Data Processing Service
+            Embedding Service
+            Pilot Service
+            Evaluation Service
+            Web Dashboard Service
+        Microservices Deployment
+            Docker containers setup and testing
+            Kubernetes deployment and testing
+        Database Provisioning
+            SQL Database
+            Vector Database

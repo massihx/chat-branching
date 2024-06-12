@@ -1,0 +1,14 @@
+.react-flow__node {
+	border-radius: 5px;
+	font-size: 12px;
+}
+
+.react-flow__node-question {
+	background-color: #f5b7b1;
+	border: 1px solid #e74c3c;
+}
+
+.react-flow__node-answer {
+	background-color: #a9dfbf;
+	border: 1px solid #27ae60;
+}

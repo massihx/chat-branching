@@ -95,7 +95,7 @@
 	-webkit-text-size-adjust: 100%;
 	font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
 		'Segoe UI Emoji';
-	font-size: 16px;
+	font-size: 12px;
 	line-height: 1.5;
 	word-wrap: break-word;
 }
@@ -676,7 +676,8 @@
 .wmde-markdown pre {
 	font-size: 85%;
 	line-height: 1.45;
-	background-color: var(--color-canvas-subtle);
+	/* background-color: var(--color-canvas-subtle); */
+	background-color: 'pink';
 	border-radius: 6px;
 }
 .wmde-markdown pre code,

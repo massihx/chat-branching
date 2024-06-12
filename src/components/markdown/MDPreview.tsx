@@ -7,7 +7,7 @@ import './wmde.css'
 
 export const MarkdownViewer = ({value}: {value: string}) => {
 	return (
-		<Box className="md-table wmde-markdown">
+		<Box className="md-table wmde-markdown" sx={{}}>
 			<Markdown>{value}</Markdown>
 		</Box>
 	)
