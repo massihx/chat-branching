@@ -227,22 +227,24 @@ export const MarkdownNode = <T,>({
 						) : (
 							<MarkdownViewer value={data.content || question} />
 						)}
-						{data?.image && (
+						{/* {data?.image && (
 							<Box sx={{mt: '20px'}}>
 								<img src={data.image} alt="image" />
 							</Box>
-						)}
+						)} */}
 					</Box>
 					{isHovered && (
 						<Box sx={sxStyles.markdownNodeActions}>
 							{data.nodeType !== 'question' ? (
 								<>
 									<FiPlus onClick={() => onAddQuestion(node)} />
-									<FiRefreshCcw onClick={() => onRefresh(node)} />
+									{/* <FiRefreshCcw onClick={() => onRefresh(node)} />
+									<FiTrash2 onClick={() => onDelete(node)} /> */}
 								</>
 							) : (
 								<>
-									<FiEdit onClick={() => setIsEditable(true)} />
+									{/* <FiPlus onClick={() => onAddQuestion(node)} /> */}
+									{/* <FiEdit onClick={() => setIsEditable(true)} /> */}
 									<FiTrash2 onClick={() => onDelete(node)} />
 								</>
 							)}

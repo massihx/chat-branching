@@ -1,3 +1,4 @@
+'use client'
 import React, {useCallback, useEffect, useRef, useState} from 'react'
 import ReactFlow, {
 	NodeMouseHandler,
@@ -91,11 +92,67 @@ const useLayoutedElements = () => {
 	return {getLayoutedElements}
 }
 
+const questionEdgeStyle = {
+	type: 'smoothstep',
+	style: {
+		strokeWidth: 3,
+		stroke: '#149700',
+	},
+	markerEnd: {
+		type: MarkerType.ArrowClosed,
+		width: 16,
+		height: 16,
+		color: '#149700',
+	},
+}
+
+const answerEdgeStyle = {
+	type: 'smoothstep',
+	style: {
+		strokeWidth: 3,
+		stroke: '#538ff6',
+	},
+	markerEnd: {
+		type: MarkerType.ArrowClosed,
+		width: 16,
+		height: 16,
+		color: '#538ff6',
+	},
+}
+
+const questionEdgeStyle2 = {
+	type: 'smoothstep',
+	style: {
+		strokeWidth: 3,
+		stroke: '#f706ff',
+	},
+	markerEnd: {
+		type: MarkerType.ArrowClosed,
+		width: 16,
+		height: 16,
+		color: '#f706ff',
+	},
+}
+
+const answerEdgeStyle2 = {
+	type: 'smoothstep',
+	style: {
+		strokeWidth: 3,
+		stroke: '#ff9900',
+	},
+	markerEnd: {
+		type: MarkerType.ArrowClosed,
+		width: 16,
+		height: 16,
+		color: '#ff9900',
+	},
+}
+
 // First, try to answer it using this PDF content: https://franklintempletonprod.widen.net/content/vbmrytwpcs/pdf/fixed-income-views-1q24-victory-lap-u.pdf.
 // If you can't find the answer there, then use your general knowledge and Google search to provide a complete response.
 // if possible create a table for the answer and include a random funny image
 const prompt = `
-You are an expert chatbot in all subjects. Please answer the following question in less than 900 character unless it starts with "describe" or "Describe". Never repeat the question.
+You are an expert chatbot in all subjects. Please answer the following question in less than 900 characters unless it starts with "describe" or "Describe". Never repeat the question. Take the previous context into account and if you are missing a value, refer to the previous message response.
 
 
 Question: 
@@ -113,18 +170,24 @@ export const ReactFlowAutoLayout: React.FC = () => {
 	const [question, setQuestion] = useState('')
 	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
 
+	const [selectedLayout, setSelectedLayout] = useState({
+		'elk.algorithm': 'layered',
+		'elk.direction': 'DOWN',
+	})
+
 	const {getLayoutedElements} = useLayoutedElements()
 	const initialFitDone = useRef(false)
 	useEffect(() => {
 		if (!initialFitDone.current) {
 			const timeout = setTimeout(() => {
-				getLayoutedElements({
-					'elk.algorithm': 'layered',
-					'elk.direction': 'DOWN',
-				})
-				fitView()
+				// getLayoutedElements({
+				// 	'elk.algorithm': 'layered',
+				// 	'elk.direction': 'DOWN',
+				// })
+				// fitView()
+				reLayout()
 				initialFitDone.current = true
-			}, 100) // Adjust the delay as needed
+			}, 200) // Adjust the delay as needed
 			return () => clearTimeout(timeout)
 		}
 	}, [nodes, fitView])
@@ -148,28 +211,21 @@ export const ReactFlowAutoLayout: React.FC = () => {
 					newNodes.push(messageNode)
 
 					if (index === 0) return
-
-					newEdges.push({
-						id: `edge-${conversation.id}-${message.id}`,
-						source: `msg-${message.parentId || message.id}`,
-						target: messageNode.id,
-						type: 'smoothstep',
-						// markerEnd: {
-						// 	type: MarkerType.ArrowClosed,
-						// 	width: 20,
-						// 	height: 20,
-						// },
-						style: {
-							strokeWidth: 2,
-							stroke: '#FF0072',
-						},
-						markerEnd: {
-							type: MarkerType.ArrowClosed,
-							width: 10,
-							height: 10,
-							color: '#FF0072',
-						},
-					})
+					if (message.parentId) {
+						nodeType === 'question'
+							? newEdges.push({
+									id: `edge-${conversation.id}-${message.id}`,
+									source: `msg-${message.parentId}`,
+									target: messageNode.id,
+									...questionEdgeStyle,
+							  })
+							: newEdges.push({
+									id: `edge-${conversation.id}-${message.id}`,
+									source: `msg-${message.parentId}`,
+									target: messageNode.id,
+									...answerEdgeStyle,
+							  })
+					}
 				})
 			})
 
@@ -191,6 +247,16 @@ export const ReactFlowAutoLayout: React.FC = () => {
 			})),
 		)
 	}, [isSelectable])
+
+	useEffect(() => {
+		reLayout()
+	}, [edges])
+
+	// todo: make it the user choice
+	const reLayout = () => {
+		getLayoutedElements(selectedLayout)
+		fitView()
+	}
 
 	const handleCheckboxChange = (id: string, isSelected: boolean) => {
 		setNodes(nds =>
@@ -247,7 +313,7 @@ export const ReactFlowAutoLayout: React.FC = () => {
 			data: {
 				message: data,
 				content: data.content,
-				image: data.image,
+				//image: data.image,
 				nodeType: isQuestion ? 'question' : 'answer',
 				isSelected: false,
 			},
@@ -283,22 +349,7 @@ export const ReactFlowAutoLayout: React.FC = () => {
 			id: uuidv4(),
 			source,
 			target,
-			type: 'smoothstep',
-			// markerEnd: {
-			// 	type: MarkerType.ArrowClosed,
-			// 	width: 20,
-			// 	height: 20,
-			// },
-			style: {
-				strokeWidth: 2,
-				stroke: '#009e3c',
-			},
-			markerEnd: {
-				type: MarkerType.ArrowClosed,
-				width: 10,
-				height: 10,
-				color: '#00820f',
-			},
+			...answerEdgeStyle,
 		}
 		setEdges(eds => [...eds, newEdge])
 	}
@@ -328,7 +379,7 @@ export const ReactFlowAutoLayout: React.FC = () => {
 				{role: 'user', content: prompt + questionContent},
 			])
 
-			console.log('are we here: 1')
+			//console.log('are we here: 1')
 
 			// Step 3: Update child nodes
 			for (const childNodeId of childNodes) {
@@ -341,7 +392,7 @@ export const ReactFlowAutoLayout: React.FC = () => {
 						message: {
 							...childNode.data.message,
 							content: answer,
-							image,
+							//image,
 						},
 					})
 				}
@@ -378,8 +429,21 @@ export const ReactFlowAutoLayout: React.FC = () => {
 			}
 
 			const hasParent = node?.data?.message?.parentId
-			if (hasParent && node?.data?.message?.id) {
-				messageContext = (await getParentMessages(node?.data?.message?.id))
+
+			const newQuestion = await createMessage(
+				questionContent,
+				'user',
+				convId,
+				hasParent ? hasParent : node?.data?.message?.id,
+			)
+
+			console.log('----------hasParent: ', hasParent)
+			console.log('----------newQuestion.id: ', newQuestion?.id)
+			console.log('----------node?.data: ', node?.data)
+			//  && node?.data?.message?.id
+			if (hasParent && newQuestion?.id) {
+				console.log('are we here 4444')
+				messageContext = (await getParentMessages(newQuestion.id))
 					.reverse()
 					.map<GptMessage>(({role, content}) => ({
 						role: role as GptMessage['role'],
@@ -389,22 +453,23 @@ export const ReactFlowAutoLayout: React.FC = () => {
 
 			messageContext.push({role: 'user', content: questionContent})
 
-			const [newQuestion, {answer, image}] = await Promise.all([
-				createMessage(
-					questionContent,
-					'user',
-					convId,
-					hasParent ? hasParent : node?.data?.message?.id,
-				),
-				fetchOpenAIResponse([{role: 'user', content: prompt + questionContent}]),
-			])
+			console.log('handle submit question: ', messageContext)
 
-			console.log('are we here: 2')
+			messageContext[messageContext.length - 1].content =
+				prompt + messageContext[messageContext.length - 1].content
+
+			const {answer} = await fetchOpenAIResponse(messageContext)
+
+			// const {answer, image} = await fetchOpenAIResponse([
+			// 	{role: 'user', content: prompt + questionContent},
+			// ])
+
+			//console.log('are we here: 2')
 			const newAnswer = await createMessage(
 				answer,
 				'assistant',
 				convId,
-				image,
+				//image,
 				newQuestion.id,
 			)
 
@@ -424,12 +489,13 @@ export const ReactFlowAutoLayout: React.FC = () => {
 		setIsLoading(true)
 		try {
 			if (node?.data?.message?.content) {
+				console.log('handle node refresh: ', node?.data?.message?.content)
 				const [answer] = await Promise.all([
 					fetchOpenAIResponse([
 						{role: 'user', content: prompt + node?.data?.message?.content},
 					]),
 				])
-				console.log('are we here: 3')
+				//console.log('are we here: 3')
 				if (node?.data?.message?.id) {
 					updateMessage(node?.data?.message?.id, answer, 'assistant')
 				}
@@ -529,12 +595,14 @@ export const ReactFlowAutoLayout: React.FC = () => {
 
 		setNodes(nds => nds.concat(newNode))
 		if (node) {
+			console.log('d node d: ', node)
 			setEdges(eds =>
 				eds.concat({
 					id: uuidv4(),
 					source: node.id,
 					target: newNode.id,
-					type: 'smoothstep',
+					...questionEdgeStyle,
+					//...(node.data.nodeType === 'question' ? answerEdgeStyle : questionEdgeStyle),
 				}),
 			)
 		}
@@ -690,40 +758,44 @@ export const ReactFlowAutoLayout: React.FC = () => {
 							}}
 						>
 							<Button
-								onClick={() =>
+								onClick={() => {
 									getLayoutedElements({
 										'elk.algorithm': 'layered',
 										'elk.direction': 'DOWN',
 									})
-								}
+									setSelectedLayout({
+										'elk.algorithm': 'layered',
+										'elk.direction': 'DOWN',
+									})
+								}}
 							>
 								vertical
 							</Button>
 							<Button
-								onClick={() =>
+								onClick={() => {
 									getLayoutedElements({
 										'elk.algorithm': 'layered',
 										'elk.direction': 'RIGHT',
+										'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
 									})
-								}
+									setSelectedLayout({
+										'elk.algorithm': 'layered',
+										'elk.direction': 'RIGHT',
+									})
+								}}
 							>
 								horizontal
 							</Button>
 							<Button
-								onClick={() =>
-									getLayoutedElements({
-										'elk.algorithm': 'org.eclipse.elk.radial',
-									})
-								}
-							>
-								radial
-							</Button>
-							<Button
-								onClick={() =>
+								onClick={() => {
 									getLayoutedElements({
 										'elk.algorithm': 'org.eclipse.elk.force',
 									})
-								}
+									setSelectedLayout({
+										'elk.algorithm': 'org.eclipse.elk.force',
+										'elk.direction': 'RIGHT',
+									})
+								}}
 							>
 								force
 							</Button>
