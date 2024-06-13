@@ -3,7 +3,7 @@
 type GPT_ROLE = 'user' | 'assistant'
 export type GptMessage = {role: GPT_ROLE; content: string}
 
-const openaiApiKey = 'sk-proj-AXfE1Oj82ZB5ET0Phd3jT3BlbkFJX2oTy5lftXu4Yfp4JhJu' // process.env.OPENAI_API_KEY
+const openaiApiKey = process.env.OPENAI_API_KEY
 
 interface OpenAIResponse {
 	data: Array<{url: string}>
