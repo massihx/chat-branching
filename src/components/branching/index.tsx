@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react'
+import React, {useCallback, useEffect, useRef, useState} from 'react'
 import ReactFlow, {
 	NodeMouseHandler,
 	Background,
@@ -10,11 +10,15 @@ import ReactFlow, {
 	MarkerType,
 	Node,
 	NodeProps,
+	useReactFlow,
+	ReactFlowProvider,
+	Panel,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import {
 	Box,
 	Button,
+	ButtonGroup,
 	Dialog,
 	DialogActions,
 	DialogContent,
@@ -37,6 +41,15 @@ import {MarkdownNode, MarkdownNodeData} from './MarkdownNode'
 import {FiCopy, FiPlus, FiTrash2} from 'react-icons/fi'
 import {CircularProgress} from '@mui/material'
 import {BiSelectMultiple} from 'react-icons/bi'
+// import {initialEdges, initialNodes} from './_initialElements'
+import ELK from 'elkjs/lib/elk.bundled.js'
+
+const proOptions = {
+	account: 'paid-pro',
+	hideAttribution: true,
+}
+
+const elk = new ELK()
 
 type MarkdownNodeDataProps = MarkdownNodeData<Partial<Message>>
 type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
@@ -44,15 +57,77 @@ type NodeWithData = Node<MarkdownNodeDataProps, 'markdownNode'>
 const initialNodes: NodeWithData[] = []
 const initialEdges: Edge[] = []
 
-export const BranchingComponent: React.FC = () => {
+const useLayoutedElements = () => {
+	const {getNodes, setNodes, getEdges, fitView} = useReactFlow()
+	const defaultOptions = {
+		'elk.algorithm': 'layered',
+		'elk.layered.spacing.nodeNodeBetweenLayers': 100,
+		'elk.spacing.nodeNode': 80,
+	}
+
+	const getLayoutedElements = useCallback(options => {
+		const layoutOptions = {...defaultOptions, ...options}
+		const graph = {
+			id: 'root',
+			layoutOptions: layoutOptions,
+			children: getNodes(),
+			edges: getEdges(),
+		}
+
+		elk.layout(graph).then(({children}) => {
+			// By mutating the children in-place we saves ourselves from creating a
+			// needless copy of the nodes array.
+			children.forEach(node => {
+				node.position = {x: node.x, y: node.y}
+			})
+
+			setNodes(children)
+			window.requestAnimationFrame(() => {
+				fitView()
+			})
+		})
+	}, [])
+
+	return {getLayoutedElements}
+}
+
+// First, try to answer it using this PDF content: https://franklintempletonprod.widen.net/content/vbmrytwpcs/pdf/fixed-income-views-1q24-victory-lap-u.pdf.
+// If you can't find the answer there, then use your general knowledge and Google search to provide a complete response.
+// if possible create a table for the answer and include a random funny image
+const prompt = `
+You are an expert chatbot in all subjects. Please answer the following question in less than 900 character unless it starts with "describe" or "Describe". Never repeat the question.
+
+
+Question: 
+`
+
+export const ReactFlowAutoLayout: React.FC = () => {
+	const {fitView} = useReactFlow()
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
+
 	const [isLoading, setIsLoading] = useState(false)
 	const [openSnackBar, setOpenSnackBar] = useState(false)
 	const [open, setOpen] = useState(false)
 	const [isSelectable, setIsSelectable] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [selectedNode, setSelectedNode] = useState<NodeWithData>()
+
+	const {getLayoutedElements} = useLayoutedElements()
+	const initialFitDone = useRef(false)
+	useEffect(() => {
+		if (!initialFitDone.current) {
+			const timeout = setTimeout(() => {
+				getLayoutedElements({
+					'elk.algorithm': 'layered',
+					'elk.direction': 'DOWN',
+				})
+				fitView()
+				initialFitDone.current = true
+			}, 100) // Adjust the delay as needed
+			return () => clearTimeout(timeout)
+		}
+	}, [nodes, fitView])
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -79,10 +154,20 @@ export const BranchingComponent: React.FC = () => {
 						source: `msg-${message.parentId || message.id}`,
 						target: messageNode.id,
 						type: 'smoothstep',
+						// markerEnd: {
+						// 	type: MarkerType.ArrowClosed,
+						// 	width: 20,
+						// 	height: 20,
+						// },
+						style: {
+							strokeWidth: 2,
+							stroke: '#FF0072',
+						},
 						markerEnd: {
 							type: MarkerType.ArrowClosed,
-							width: 20,
-							height: 20,
+							width: 10,
+							height: 10,
+							color: '#FF0072',
 						},
 					})
 				})
@@ -162,6 +247,7 @@ export const BranchingComponent: React.FC = () => {
 			data: {
 				message: data,
 				content: data.content,
+				image: data.image,
 				nodeType: isQuestion ? 'question' : 'answer',
 				isSelected: false,
 			},
@@ -198,10 +284,20 @@ export const BranchingComponent: React.FC = () => {
 			source,
 			target,
 			type: 'smoothstep',
+			// markerEnd: {
+			// 	type: MarkerType.ArrowClosed,
+			// 	width: 20,
+			// 	height: 20,
+			// },
+			style: {
+				strokeWidth: 2,
+				stroke: '#009e3c',
+			},
 			markerEnd: {
 				type: MarkerType.ArrowClosed,
-				width: 20,
-				height: 20,
+				width: 10,
+				height: 10,
+				color: '#00820f',
 			},
 		}
 		setEdges(eds => [...eds, newEdge])
@@ -227,7 +323,12 @@ export const BranchingComponent: React.FC = () => {
 				.map(edge => edge.target)
 
 			// Step 2: Fetch new answer from ChatGPT
-			const answer = await fetchOpenAIResponse([{role: 'user', content: questionContent}])
+
+			const {answer, image} = await fetchOpenAIResponse([
+				{role: 'user', content: prompt + questionContent},
+			])
+
+			console.log('are we here: 1')
 
 			// Step 3: Update child nodes
 			for (const childNodeId of childNodes) {
@@ -240,6 +341,7 @@ export const BranchingComponent: React.FC = () => {
 						message: {
 							...childNode.data.message,
 							content: answer,
+							image,
 						},
 					})
 				}
@@ -287,17 +389,24 @@ export const BranchingComponent: React.FC = () => {
 
 			messageContext.push({role: 'user', content: questionContent})
 
-			const [newQuestion, answer] = await Promise.all([
+			const [newQuestion, {answer, image}] = await Promise.all([
 				createMessage(
 					questionContent,
 					'user',
 					convId,
 					hasParent ? hasParent : node?.data?.message?.id,
 				),
-				fetchOpenAIResponse([{role: 'user', content: questionContent}]),
+				fetchOpenAIResponse([{role: 'user', content: prompt + questionContent}]),
 			])
 
-			const newAnswer = await createMessage(answer, 'assistant', convId, newQuestion.id)
+			console.log('are we here: 2')
+			const newAnswer = await createMessage(
+				answer,
+				'assistant',
+				convId,
+				image,
+				newQuestion.id,
+			)
 
 			const answerNode = addNode(newAnswer, {x: newPosition.x + 200, y: newPosition.y}, false)
 
@@ -316,9 +425,11 @@ export const BranchingComponent: React.FC = () => {
 		try {
 			if (node?.data?.message?.content) {
 				const [answer] = await Promise.all([
-					fetchOpenAIResponse([{role: 'user', content: node?.data?.message?.content}]),
+					fetchOpenAIResponse([
+						{role: 'user', content: prompt + node?.data?.message?.content},
+					]),
 				])
-
+				console.log('are we here: 3')
 				if (node?.data?.message?.id) {
 					updateMessage(node?.data?.message?.id, answer, 'assistant')
 				}
@@ -512,9 +623,10 @@ export const BranchingComponent: React.FC = () => {
 			)}
 			<Box sx={{flexGrow: 1}}>
 				<ReactFlow
+					proOptions={proOptions}
 					nodes={nodes}
-					edges={edges}
 					onNodesChange={onNodesChange}
+					edges={edges}
 					onEdgesChange={onEdgesChange}
 					nodeTypes={React.useMemo(() => {
 						return {
@@ -534,32 +646,132 @@ export const BranchingComponent: React.FC = () => {
 							),
 						}
 					}, [])}
-					fitView
+					//fitView
+					fitView={false}
+					zoomOnDoubleClick={false}
 				>
-					<MiniMap />
+					<MiniMap
+						nodeStrokeWidth={3}
+						zoomable
+						pannable
+						ariaLabel="Mini Map"
+						nodeStrokeColor={node => {
+							if (node.data.nodeType === 'question') return '#255fc5'
+							if (node.data.nodeType !== 'question') return '#0e8f6d'
+							return 'green'
+						}}
+						nodeColor={node => {
+							if (node.data.nodeType === 'question') return '#89b4fe'
+							if (node.data.nodeType !== 'question') return '#54fbce'
+							return 'blue'
+						}}
+					/>
 					<Controls />
 					<Background />
+					<Panel position="top-right">
+						<ButtonGroup
+							variant="contained"
+							aria-label="Basic button group"
+							size="small"
+							color="secondary"
+							sx={{
+								'&  button': {
+									// backgroundColor: '#ffffff',
+									// color: '#5e5e5e',
+									// borderColor: '#c5c5c5 !important',
+
+									paddingTop: '6px',
+								},
+								'&  button:hover': {
+									backgroundColor: '#aeaeae',
+									color: '#252525',
+									borderColor: '#c5c5c5 !important',
+								},
+							}}
+						>
+							<Button
+								onClick={() =>
+									getLayoutedElements({
+										'elk.algorithm': 'layered',
+										'elk.direction': 'DOWN',
+									})
+								}
+							>
+								vertical
+							</Button>
+							<Button
+								onClick={() =>
+									getLayoutedElements({
+										'elk.algorithm': 'layered',
+										'elk.direction': 'RIGHT',
+									})
+								}
+							>
+								horizontal
+							</Button>
+							<Button
+								onClick={() =>
+									getLayoutedElements({
+										'elk.algorithm': 'org.eclipse.elk.radial',
+									})
+								}
+							>
+								radial
+							</Button>
+							<Button
+								onClick={() =>
+									getLayoutedElements({
+										'elk.algorithm': 'org.eclipse.elk.force',
+									})
+								}
+							>
+								force
+							</Button>
+						</ButtonGroup>
+					</Panel>
+					<Panel position="bottom-center">
+						<ButtonGroup
+							variant="contained"
+							aria-label="Basic button group"
+							color="primary"
+							size="small"
+							sx={{
+								'&  button': {
+									// backgroundColor: '#ffffff',
+									// color: '#5e5e5e',
+									// borderColor: '#c5c5c5 !important',
+
+									paddingTop: '6px',
+								},
+								'&  button:hover': {
+									backgroundColor: '#aeaeae',
+									color: '#252525',
+									borderColor: '#c5c5c5 !important',
+								},
+							}}
+						>
+							<Button onClick={() => addQuestionNode()}>
+								<FiPlus size={24} />
+							</Button>
+							<Button onClick={() => setOpen(true)}>
+								<FiTrash2 size={24} />
+							</Button>
+							{isSelectable ? (
+								<Button onClick={createStringFromSelectedNodes}>
+									<FiCopy size={24} />
+								</Button>
+							) : (
+								<Button>
+									<BiSelectMultiple
+										onClick={() => setIsSelectable(!isSelectable)}
+										size={24}
+									/>
+								</Button>
+							)}
+						</ButtonGroup>
+					</Panel>
 				</ReactFlow>
-				<Box sx={sxStyles.globalIcons}>
-					<Button onClick={() => addQuestionNode()} sx={sxStyles.btn}>
-						<FiPlus size={24} />
-					</Button>
-					<Button onClick={() => setOpen(true)} sx={sxStyles.btn}>
-						<FiTrash2 size={24} />
-					</Button>
-					{isSelectable ? (
-						<Button onClick={createStringFromSelectedNodes} sx={sxStyles.btn}>
-							<FiCopy size={24} />
-						</Button>
-					) : (
-						<Button sx={sxStyles.btn}>
-							<BiSelectMultiple
-								onClick={() => setIsSelectable(!isSelectable)}
-								size={24}
-							/>
-						</Button>
-					)}
-				</Box>
+
 				<Dialog open={open} onClose={handleClose}>
 					<DialogTitle>Delete record</DialogTitle>
 					<DialogContent>
@@ -581,5 +793,13 @@ export const BranchingComponent: React.FC = () => {
 				/>
 			</Box>
 		</>
+	)
+}
+
+export const ReactFlowWrapper = () => {
+	return (
+		<ReactFlowProvider>
+			<ReactFlowAutoLayout />
+		</ReactFlowProvider>
 	)
 }

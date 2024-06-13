@@ -49,6 +49,7 @@ export const createMessage = async (
 	content: string,
 	role: string,
 	conversationId: number,
+	image?: string,
 	parentId?: number,
 ): Promise<Message> => {
 	// Check if the conversationId exists
@@ -74,6 +75,7 @@ export const createMessage = async (
 	return (await prisma.message.create({
 		data: {
 			content,
+			image: image?.toString() || '',
 			role,
 			parentId,
 			conversationId,

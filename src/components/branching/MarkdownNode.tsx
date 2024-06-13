@@ -1,14 +1,15 @@
-import React, {useEffect, useState} from 'react'
-import {Handle, Position, NodeProps, NodeResizeControl} from 'reactflow'
+import React, {useEffect, useRef, useState} from 'react'
+import {Handle, Position, NodeProps, NodeResizeControl, NodeResizer} from 'reactflow'
 import {FiEdit, FiPlus, FiRefreshCcw, FiTrash2} from 'react-icons/fi'
 import {Button, TextareaAutosize, Checkbox, Dialog, DialogActions, DialogTitle} from '@mui/material'
 
-import {MarkdownViewer} from './markdown/MDPreview'
+import {MarkdownViewer} from '../markdown/MDPreview'
 import {Box} from '@mui/material'
 
 export interface MarkdownNodeData<T> {
 	content: string
 	message: T
+	image?: string
 	nodeType: 'answer' | 'question'
 	isSelected: boolean
 }
@@ -35,14 +36,35 @@ export const MarkdownNode = <T,>({
 	submitEdit,
 	...node
 }: MarkdownNodeProps<T>) => {
+	// console.log('node: ', node)
 	const {id, data} = node
 	const [isHovered, setIsHovered] = useState(false)
 	const [isEditable, setIsEditable] = useState(false)
 	const [isTextarea, setIsTextarea] = useState(false)
 	const [question, setQuestion] = useState('')
 	const [confirmDeleteDialog, setConfirmDeleteDialog] = useState(false)
+	const [dimensions, setDimensions] = useState({width: 0, height: 0})
+	const contentRef = useRef<HTMLDivElement>(null)
 
 	const isQuestionNode = data.nodeType === 'question'
+
+	const maxWidth = 200
+	const maxHeight = 500
+
+	useEffect(() => {
+		if (contentRef.current) {
+			const contentWidth = contentRef.current.scrollWidth + 20 // 20px for padding
+			const contentHeight = contentRef.current.scrollHeight + 20 // 20px for padding
+			setDimensions({
+				width: Math.min(maxWidth, contentWidth),
+				height: Math.min(maxHeight, contentHeight),
+			})
+		}
+	}, [data.content])
+
+	const handleResize = (width: number, height: number) => {
+		setDimensions({width, height})
+	}
 
 	const showConfirmDeleteDialog = () => {
 		setConfirmDeleteDialog(true)
@@ -153,11 +175,36 @@ export const MarkdownNode = <T,>({
 	return (
 		<>
 			<Box
-				sx={{...sxStyles.markdownNode, ...sxStyles?.nodeStyle}}
+				sx={{
+					...sxStyles.markdownNode,
+					...sxStyles.nodeStyle,
+					backgroundColor: isQuestionNode ? '#E8F0FE' : '#E6F4EA',
+					borderRadius: '8px',
+
+					// minWidth: '88px',
+					minWidth: '220px',
+
+					// width: `${dimensions.width}px`,
+					minHeight: `${dimensions.height}px`,
+				}}
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 			>
-				<NodeResizeControl minWidth={20} minHeight={20}></NodeResizeControl>
+				{/* <NodeResizeControl minWidth={20} minHeight={20}></NodeResizeControl> */}
+				<NodeResizer
+					color="#0015ff"
+					isVisible={node.selected}
+					minWidth={20} // Minimum width to allow small content
+					minHeight={20} // Minimum height to allow small content
+					onResize={(event, {width, height}) => handleResize(width, height)}
+					handleStyle={{
+						width: '8px',
+						height: '8px',
+						//border: '1px solid #ea80ff',
+						background: '#9b4bcd',
+						zIndex: 1,
+					}}
+				/>
 				{data?.isSelectable && (
 					<Checkbox checked={data.isSelected} onChange={handleCheckboxChange} />
 				)}
@@ -180,6 +227,11 @@ export const MarkdownNode = <T,>({
 						) : (
 							<MarkdownViewer value={data.content || question} />
 						)}
+						{data?.image && (
+							<Box sx={{mt: '20px'}}>
+								<img src={data.image} alt="image" />
+							</Box>
+						)}
 					</Box>
 					{isHovered && (
 						<Box sx={sxStyles.markdownNodeActions}>
@@ -196,8 +248,21 @@ export const MarkdownNode = <T,>({
 							)}
 						</Box>
 					)}
-					<Handle type="source" position={Position.Top} />
-					<Handle type="target" position={Position.Bottom} />
+					{isQuestionNode ? (
+						<>
+							<Handle type="target" position={Position.Top} />
+							<Handle type="source" position={Position.Bottom} />
+							{/* <Handle type="target" position={Position.Left} />
+							<Handle type="source" position={Position.Right} /> */}
+						</>
+					) : (
+						<>
+							<Handle type="target" position={Position.Top} />
+							<Handle type="source" position={Position.Bottom} />
+							{/* <Handle type="target" position={Position.Left} />
+							<Handle type="source" position={Position.Right} /> */}
+						</>
+					)}
 				</Box>
 				<Dialog open={confirmDeleteDialog} onClose={closeConfirmDeleteDialog}>
 					<DialogTitle>Are you sure to delete this conversation?</DialogTitle>
