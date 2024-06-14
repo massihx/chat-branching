@@ -114,19 +114,29 @@ export const MarkdownNode = <T,>({
 			  },
 		markdownNodeContent: {
 			padding: '7px',
+			marginRight: '24px',
+			//backgroundColor: 'pink',
 		},
 		markdownNodeActions: {
 			position: 'absolute',
-			top: '-20px',
-			right: '-20px',
+			bottom: '2px',
+			right: '2px',
 			display: 'flex',
 			gap: '8px',
 			background: 'rgba(255, 255, 255, 0.9)',
 			borderRadius: '8px',
-			padding: '5px',
+			//padding: '5px',
 			boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+			border: '1px solid #acacac',
+			// width: '50px',
+			// height: '50px',
 			'& svg': {
 				cursor: 'pointer',
+				//backgroundColor: 'red',
+				padding: '5px',
+				FontSize: '40px',
+				width: '24px',
+				height: '24px',
 			},
 		},
 		contentContainer: {
@@ -192,7 +202,8 @@ export const MarkdownNode = <T,>({
 			>
 				{/* <NodeResizeControl minWidth={20} minHeight={20}></NodeResizeControl> */}
 				<NodeResizer
-					color="#0015ff"
+					// color="#0015ff"
+					color={isQuestionNode ? '#538ff6' : '#149700'}
 					isVisible={node.selected}
 					minWidth={20} // Minimum width to allow small content
 					minHeight={20} // Minimum height to allow small content
